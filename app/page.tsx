@@ -122,7 +122,7 @@ export default async function HomePage() {
           Archive · Relationships · Continuity
         </h1>
         <p className="text-base text-muted-foreground tracking-tight">
-          Visual world-building and canon system for the Sao House universe
+          Visual world-building and canon system for the {currentStory.name} universe
         </p>
       </div>
 
