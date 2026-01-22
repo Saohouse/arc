@@ -1,0 +1,255 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String // hashed password
+  role      String   @default("viewer") // viewer, editor, admin
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions Session[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+model Story {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  characters    Character[]
+  worlds        World[]
+  locations     Location[]
+  objects       Object[]
+  relationships Relationship[]
+  episodes      Episode[]
+  arcs          Arc[]
+  sagas         Saga[]
+  tags          Tag[]
+}
+
+model Tag {
+  id          String   @id @default(cuid())
+  name        String   // The tag name (e.g., "protagonist", "villain")
+  color       String?  // Custom color override (hex)
+  description String?
+  usageCount  Int      @default(0) // How many times this tag is used
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  storyId String
+  story   Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, name]) // Each tag name must be unique per story
+  @@index([storyId])
+}
+
+model Character {
+  id        String   @id @default(cuid())
+  name      String
+  title     String?
+  bio       String?
+  imageUrl  String?
+  tags      String   @default("") // comma-separated for now
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  storyId String
+  story   Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  homeLocationId String?
+  homeLocation   Location? @relation(fields: [homeLocationId], references: [id])
+
+  @@index([storyId])
+}
+
+model Relationship {
+  id        String   @id @default(cuid())
+  type      String   // ally, rival, mentor, lives_in, owns, located_in, etc.
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  storyId String
+  story   Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  // Polymorphic source (can be character, world, location, or object)
+  sourceType String // "character", "world", "location", "object"
+  sourceId   String
+
+  // Polymorphic target (can be character, world, location, or object)
+  targetType String // "character", "world", "location", "object"
+  targetId   String
+
+  @@index([storyId])
+  @@index([sourceType, sourceId])
+  @@index([targetType, targetId])
+}
+
+model World {
+  id        String   @id @default(cuid())
+  name      String
+  summary   String?
+  overview  String?
+  imageUrl  String?
+  tags      String   @default("") // comma-separated for now
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  storyId String
+  story   Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@index([storyId])
+}
+
+model Location {
+  id        String   @id @default(cuid())
+  name      String
+  summary   String?
+  overview  String?
+  imageUrl  String?
+  tags      String   @default("") // comma-separated for now
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  storyId String
+  story   Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  residents Character[]
+  scenes    Scene[]
+
+  @@index([storyId])
+}
+
+model Object {
+  id          String   @id @default(cuid())
+  name        String
+  category    String?  // weapon, tool, collectible, artifact, etc.
+  description String?
+  imageUrl    String?
+  tags        String   @default("") // comma-separated for now
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  storyId String
+  story   Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@index([storyId])
+}
+
+model Episode {
+  id             String   @id @default(cuid())
+  title          String
+  episodeNumber  Int
+  description    String?
+  script         String?  // The actual content/dialogue
+  status         String   @default("draft") // draft, review, published
+  publishDate    DateTime?
+  instagramUrl   String?
+  thumbnailUrl   String?
+  duration       Int?     // in seconds
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  storyId String
+  story   Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  scenes Scene[]
+
+  @@index([storyId])
+  @@index([episodeNumber])
+}
+
+model Scene {
+  id          String   @id @default(cuid())
+  title       String
+  sceneNumber Int
+  content     String?  // What happens in this scene
+  notes       String?
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  episodeId String
+  episode   Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  // What's in this scene
+  locationId String?
+  location   Location? @relation(fields: [locationId], references: [id])
+
+  characterIds String @default("") // comma-separated character IDs for now
+  objectIds    String @default("") // comma-separated object IDs for now
+
+  @@index([episodeId])
+  @@index([locationId])
+}
+
+model Saga {
+  id          String   @id @default(cuid())
+  name        String   // e.g., "Season 1", "Origins Phase", "Book 1"
+  number      Int      // 1, 2, 3... for ordering
+  description String?
+  status      String   @default("planning") // planning, active, completed
+  startDate   DateTime?
+  endDate     DateTime?
+  color       String?  // for visualization
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  storyId String
+  story   Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  arcs Arc[]
+
+  @@index([storyId])
+  @@index([number])
+}
+
+model Arc {
+  id                 String   @id @default(cuid())
+  name               String
+  type               String   // "character", "plot", "location"
+  description        String?
+  status             String   @default("planning") // planning, active, resolved
+  startEpisodeNumber Int?
+  endEpisodeNumber   Int?
+  color              String?  // for visualization
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  storyId String
+  story   Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  sagaId String?
+  saga   Saga?   @relation(fields: [sagaId], references: [id], onDelete: SetNull)
+
+  // What entities are involved in this arc
+  characterId String? // for character arcs
+  locationId  String? // for location arcs
+
+  @@index([storyId])
+  @@index([sagaId])
+}
