@@ -6,9 +6,12 @@ import { RoleGate } from "@/components/arc/RoleGate";
 import { DeleteButton } from "@/components/arc/DeleteButton";
 import { requireRole } from "@/lib/auth";
 
-async function deleteSaga(sagaId: string) {
+async function deleteSaga(formData: FormData) {
   "use server";
   await requireRole("editor");
+
+  const sagaId = String(formData.get("id") ?? "");
+  if (!sagaId) return;
 
   const currentStory = await getCurrentStory();
 
@@ -94,11 +97,9 @@ export default async function SagaDetailPage({
               Edit
             </Link>
             <DeleteButton
-              itemName={saga.name}
-              onDelete={async () => {
-                "use server";
-                await deleteSaga(saga.id);
-              }}
+              id={saga.id}
+              name={saga.name}
+              action={deleteSaga}
             />
           </div>
         </RoleGate>
