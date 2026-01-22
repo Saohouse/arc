@@ -55,7 +55,7 @@ model Story {
 
 model StoryMember {
   id        String    @id @default(cuid())
-  role      String    @default("member") // owner, member
+  role      String    @default("editor") // owner, editor, viewer
   viewedAt  DateTime? // When user first saw this invitation
   createdAt DateTime  @default(now())
 

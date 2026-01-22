@@ -42,6 +42,7 @@ async function setupStoryMembers() {
         storyId: story.id,
         userId: firstUser.id,
         role: "owner",
+        viewedAt: new Date(), // Mark as viewed since they created it
       },
     });
 
@@ -56,6 +57,7 @@ async function setupStoryMembers() {
           storyId: story.id,
           userId: user.id,
           role: "owner",
+          viewedAt: new Date(),
         },
       });
       console.log(`✅ Added ${user.email} as owner of "${story.name}"`);

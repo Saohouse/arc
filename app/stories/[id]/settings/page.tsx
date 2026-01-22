@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import Link from "next/link";
+import { StoryMemberRoleSelector } from "@/components/arc/StoryMemberRoleSelector";
 
 async function inviteMember(formData: FormData) {
   "use server";
@@ -55,12 +56,62 @@ async function inviteMember(formData: FormData) {
     redirect(`/stories/${storyId}/settings`);
   }
 
-  // Add as member
+  // Get the role from the form (default to editor)
+  const role = String(formData.get("role") ?? "editor");
+  
+  // Add as member with specified role
   await prisma.storyMember.create({
     data: {
       storyId,
       userId: userToInvite.id,
-      role: "member",
+      role,
+    },
+  });
+
+  redirect(`/stories/${storyId}/settings`);
+}
+
+async function updateMemberRole(formData: FormData) {
+  "use server";
+
+  const storyId = String(formData.get("storyId") ?? "");
+  const userId = String(formData.get("userId") ?? "");
+  const newRole = String(formData.get("role") ?? "");
+
+  const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    redirect("/login");
+  }
+
+  // Check if current user is owner
+  const membership = await prisma.storyMember.findUnique({
+    where: {
+      storyId_userId: {
+        storyId,
+        userId: currentUser.id,
+      },
+    },
+  });
+
+  if (!membership || membership.role !== "owner") {
+    redirect(`/stories/${storyId}/settings`);
+  }
+
+  // Don't allow changing your own role
+  if (userId === currentUser.id) {
+    redirect(`/stories/${storyId}/settings`);
+  }
+
+  // Update the member's role
+  await prisma.storyMember.update({
+    where: {
+      storyId_userId: {
+        storyId,
+        userId,
+      },
+    },
+    data: {
+      role: newRole,
     },
   });
 
@@ -202,15 +253,12 @@ export default async function StorySettingsPage({
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span
-                    className={`inline-block rounded px-3 py-1 text-xs font-medium ${
-                      member.role === "owner"
-                        ? "bg-purple-100 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400"
-                        : "bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400"
-                    }`}
-                  >
-                    {member.role === "owner" ? "Owner" : "Member"}
-                  </span>
+                  <StoryMemberRoleSelector
+                    storyId={storyId}
+                    userId={member.userId}
+                    currentRole={member.role}
+                    disabled={!isOwner || member.userId === currentUser.id}
+                  />
                   {isOwner && member.userId !== currentUser.id && (
                     <form action={removeMember}>
                       <input type="hidden" name="storyId" value={storyId} />
@@ -250,6 +298,21 @@ export default async function StorySettingsPage({
                   The user must already have an account to be invited
                 </p>
               </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Role
+                </label>
+                <select
+                  name="role"
+                  defaultValue="editor"
+                  className="w-full rounded-md border bg-background px-4 py-2.5 text-sm"
+                >
+                  <option value="editor">Editor - Can create and edit content</option>
+                  <option value="viewer">Viewer - Can only view content</option>
+                </select>
+              </div>
+              
               <button
                 type="submit"
                 className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background hover:bg-foreground/90"
@@ -267,6 +330,24 @@ export default async function StorySettingsPage({
             </p>
           </div>
         )}
+
+        {/* About Story Roles */}
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/30">
+          <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-400">
+            About Story Roles
+          </h3>
+          <ul className="mt-2 space-y-1 text-xs text-blue-800 dark:text-blue-300">
+            <li>
+              <strong>Owner:</strong> Full access including member management
+            </li>
+            <li>
+              <strong>Editor:</strong> Can create and edit all story content
+            </li>
+            <li>
+              <strong>Viewer:</strong> Can only view story content (read-only)
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   );
