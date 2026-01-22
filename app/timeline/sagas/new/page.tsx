@@ -131,7 +131,10 @@ export default async function NewSagaPage() {
           </label>
         </div>
 
-        <ColorPicker name="color" label="Color (Optional)" />
+        <label className="block text-sm font-medium">
+          Color (Optional)
+          <ColorPicker name="color" />
+        </label>
 
         <div className="flex flex-wrap items-center gap-3">
           <button

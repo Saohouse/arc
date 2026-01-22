@@ -148,11 +148,13 @@ export default async function EditSagaPage({
           </label>
         </div>
 
-        <ColorPicker
-          name="color"
-          label="Color (Optional)"
-          defaultValue={saga.color ?? undefined}
-        />
+        <label className="block text-sm font-medium">
+          Color (Optional)
+          <ColorPicker
+            name="color"
+            defaultValue={saga.color || undefined}
+          />
+        </label>
 
         <div className="flex flex-wrap items-center gap-3">
           <button

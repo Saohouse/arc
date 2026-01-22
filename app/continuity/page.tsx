@@ -299,11 +299,11 @@ export default async function ContinuityPage() {
 
   // Check 7: Empty tags
   [...characters, ...worlds, ...locations, ...objects].forEach((entity) => {
-    const type = characters.includes(entity as any)
+    const type = characters.some((c) => c.id === entity.id)
       ? "character"
-      : worlds.includes(entity as any)
+      : worlds.some((w) => w.id === entity.id)
         ? "world"
-        : locations.includes(entity as any)
+        : locations.some((l) => l.id === entity.id)
           ? "location"
           : "object";
 
