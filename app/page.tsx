@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentStory } from "@/lib/story";
+import { getCurrentUser } from "@/lib/auth";
 import { RoleGate } from "@/components/arc/RoleGate";
+import { UserMenu } from "@/components/arc/UserMenu";
 
 type ActivityItem = {
   id: string;
@@ -12,7 +14,86 @@ type ActivityItem = {
 };
 
 export default async function HomePage() {
-  const currentStory = await getCurrentStory();
+  const [currentStory, currentUser] = await Promise.all([
+    getCurrentStory(),
+    getCurrentUser(),
+  ]);
+
+  // Show welcome screen if no story exists
+  if (!currentStory) {
+    const isViewer = currentUser?.role === "viewer";
+    
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-8">
+        <div className="max-w-2xl text-center space-y-12">
+          {/* Main content */}
+          <div className="space-y-8">
+            <div className="space-y-4">
+              <h1 className="text-7xl font-bold tracking-tight">ARC</h1>
+              <p className="text-sm uppercase tracking-widest text-muted-foreground">
+                Archive · Relationships · Continuity
+              </p>
+            </div>
+            
+            <div className="space-y-6 pt-4">
+              <p className="text-xl text-muted-foreground">
+                Your world-building companion for creating and managing rich story universes
+              </p>
+              
+              {isViewer ? (
+                <div className="rounded-lg border bg-muted/30 p-6 space-y-2">
+                  <p className="text-base font-medium">
+                    No stories have been created yet
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Contact an admin or editor to create the first story
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <p className="text-base text-muted-foreground">
+                    Start building your universe by creating your first story
+                  </p>
+                  <form action="/stories/new" method="GET">
+                    <button
+                      type="submit"
+                      className="rounded-lg bg-foreground px-8 py-4 text-base font-semibold text-background hover:bg-foreground/90 transition-colors shadow-sm"
+                    >
+                      Create Your First Story
+                    </button>
+                  </form>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* User info and logout */}
+          {currentUser && (
+            <div className="pt-8 border-t space-y-4">
+              <div className="flex items-center justify-center gap-3 text-sm text-muted-foreground">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-foreground font-semibold text-xs">
+                  {currentUser.name[0].toUpperCase()}
+                </div>
+                <div>
+                  <span className="font-medium text-foreground">{currentUser.name}</span>
+                  <span className="mx-2">·</span>
+                  <span className="capitalize">{currentUser.role}</span>
+                </div>
+              </div>
+              <form action="/api/auth/logout" method="POST">
+                <button
+                  type="submit"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
+                >
+                  Log out
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   const [characters, worlds, locations, objects] = await Promise.all([
     prisma.character.findMany({

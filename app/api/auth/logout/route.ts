@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 
 export async function POST() {
@@ -14,5 +15,5 @@ export async function POST() {
   // Clear the cookie
   cookieStore.delete("session");
 
-  return NextResponse.json({ success: true });
+  redirect("/login");
 }

@@ -5,6 +5,7 @@ import { getCurrentStory } from "@/lib/story";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { UserMenu } from "@/components/arc/UserMenu";
+import { headers } from "next/headers";
 
 const nav = [
   { href: "/archive", label: "📚 Archive" },
@@ -22,6 +23,18 @@ export async function ArcShell({ children }: { children: React.ReactNode }) {
     prisma.story.findMany({ orderBy: { createdAt: "asc" } }),
     getCurrentUser(),
   ]);
+
+  // If no user is logged in, render pages without the ArcShell layout
+  // (login, signup pages will handle their own layout)
+  if (!currentUser) {
+    return <>{children}</>;
+  }
+
+  // If logged in but no story exists, just render children directly
+  // (home page will show welcome screen, or stories/new will show create form)
+  if (!currentStory) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="min-h-screen bg-background">

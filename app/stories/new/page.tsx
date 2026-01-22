@@ -28,50 +28,68 @@ async function createStory(formData: FormData) {
 
 export default function NewStoryPage() {
   return (
-    <div className="max-w-2xl space-y-8">
-      <div>
-        <h1 className="text-4xl font-semibold tracking-tight">New Story</h1>
-        <p className="mt-3 text-base text-muted-foreground tracking-tight">
-          Create a new story/universe to organize your world-building.
+    <div className="min-h-screen bg-background flex items-center justify-center p-8">
+      <div className="w-full max-w-2xl space-y-12">
+        {/* Header with ARC branding */}
+        <div className="text-center space-y-4">
+          <div className="text-5xl font-bold tracking-tight">ARC</div>
+          <div className="text-xs uppercase tracking-widest text-muted-foreground">
+            Archive · Relationships · Continuity
+          </div>
+        </div>
+
+        {/* Form Card */}
+        <div className="rounded-lg border bg-card p-8 shadow-sm space-y-8">
+          <div className="text-center">
+            <h1 className="text-3xl font-semibold tracking-tight">Create Your Story</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Start building your universe
+            </p>
+          </div>
+
+          <form action={createStory} className="space-y-6">
+            <label className="block">
+              <span className="text-sm font-medium">Story Name</span>
+              <input
+                name="name"
+                required
+                className="mt-2 w-full rounded-md border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
+                placeholder="e.g. The Archive Chronicles, My Fantasy World"
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-medium">Description</span>
+              <textarea
+                name="description"
+                rows={4}
+                className="mt-2 w-full rounded-md border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
+                placeholder="Brief description of your story universe (optional)"
+              />
+            </label>
+
+            <div className="flex flex-col sm:flex-row items-center gap-3 pt-4">
+              <button
+                type="submit"
+                className="w-full sm:w-auto rounded-lg bg-foreground px-8 py-3 text-sm font-semibold text-background hover:bg-foreground/90 transition-colors shadow-sm"
+              >
+                Create Story
+              </button>
+              <Link
+                href="/"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Cancel
+              </Link>
+            </div>
+          </form>
+        </div>
+
+        {/* Help text */}
+        <p className="text-center text-xs text-muted-foreground">
+          You can create multiple stories and switch between them anytime
         </p>
       </div>
-
-      <form action={createStory} className="space-y-6">
-        <label className="block">
-          <span className="text-sm font-medium">Story Name</span>
-          <input
-            name="name"
-            required
-            className="mt-2 w-full rounded border bg-background px-4 py-2.5 text-sm"
-            placeholder="e.g. Sao House World Story, The Archive Chronicles"
-          />
-        </label>
-
-        <label className="block">
-          <span className="text-sm font-medium">Description</span>
-          <textarea
-            name="description"
-            rows={4}
-            className="mt-2 w-full rounded border bg-background px-4 py-2.5 text-sm"
-            placeholder="Brief description of this story/universe"
-          />
-        </label>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="submit"
-            className="rounded bg-foreground px-5 py-2.5 text-[13px] font-medium text-background hover:bg-foreground/90 transition-colors"
-          >
-            Create Story
-          </button>
-          <Link
-            href="/"
-            className="text-[13px] text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Cancel
-          </Link>
-        </div>
-      </form>
     </div>
   );
 }
