@@ -10,7 +10,7 @@ async function inviteMember(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
 
   if (!email || !storyId) {
-    return { error: "Email and story are required" };
+    redirect(`/stories/${storyId}/settings`);
   }
 
   const currentUser = await getCurrentUser();
@@ -29,7 +29,7 @@ async function inviteMember(formData: FormData) {
   });
 
   if (!membership || membership.role !== "owner") {
-    return { error: "Only story owners can invite members" };
+    redirect(`/stories/${storyId}/settings`);
   }
 
   // Find user by email
@@ -38,7 +38,7 @@ async function inviteMember(formData: FormData) {
   });
 
   if (!userToInvite) {
-    return { error: "No user found with that email" };
+    redirect(`/stories/${storyId}/settings`);
   }
 
   // Check if already a member
@@ -52,7 +52,7 @@ async function inviteMember(formData: FormData) {
   });
 
   if (existingMember) {
-    return { error: "User is already a member of this story" };
+    redirect(`/stories/${storyId}/settings`);
   }
 
   // Add as member
@@ -89,12 +89,12 @@ async function removeMember(formData: FormData) {
   });
 
   if (!membership || membership.role !== "owner") {
-    return { error: "Only story owners can remove members" };
+    redirect(`/stories/${storyId}/settings`);
   }
 
   // Don't allow removing yourself
   if (userId === currentUser.id) {
-    return { error: "You cannot remove yourself from the story" };
+    redirect(`/stories/${storyId}/settings`);
   }
 
   await prisma.storyMember.delete({
