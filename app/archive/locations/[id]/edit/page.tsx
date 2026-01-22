@@ -3,6 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { saveImageUpload } from "@/lib/uploads";
 import { requireRole } from "@/lib/auth";
+import { ImageUpload } from "@/components/arc/ImageUpload";
 
 async function updateLocation(formData: FormData) {
   "use server";
@@ -103,20 +104,18 @@ export default async function EditLocationPage({
           />
         </label>
 
-        <label className="block text-sm font-medium">
-          Image (JPG or PNG)
-          <input
+        <div>
+          <ImageUpload
             name="image"
-            type="file"
-            accept="image/jpeg,image/png"
-            className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+            label="Location Image"
+            maxSizeMB={5}
           />
-          {location.imageUrl ? (
+          {location.imageUrl && (
             <div className="mt-2 text-xs text-muted-foreground">
-              Current: {location.imageUrl}
+              Current: {location.imageUrl.split('/').pop()}
             </div>
-          ) : null}
-        </label>
+          )}
+        </div>
 
         <label className="block text-sm font-medium">
           Tags

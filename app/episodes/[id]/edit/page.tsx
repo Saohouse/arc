@@ -3,6 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { saveImageUpload } from "@/lib/uploads";
 import { requireRole } from "@/lib/auth";
+import { ImageUpload } from "@/components/arc/ImageUpload";
 
 async function updateEpisode(formData: FormData) {
   "use server";
@@ -183,20 +184,18 @@ export default async function EditEpisodePage({
           />
         </label>
 
-        <label className="block text-sm font-medium">
-          Thumbnail (JPG or PNG)
-          <input
+        <div>
+          <ImageUpload
             name="thumbnail"
-            type="file"
-            accept="image/jpeg,image/png"
-            className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+            label="Thumbnail"
+            maxSizeMB={5}
           />
           {episode.thumbnailUrl && (
             <div className="mt-2 text-xs text-muted-foreground">
-              Current: {episode.thumbnailUrl}
+              Current: {episode.thumbnailUrl.split('/').pop()}
             </div>
           )}
-        </label>
+        </div>
 
         <div className="flex flex-wrap items-center gap-3">
           <button

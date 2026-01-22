@@ -3,6 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { saveImageUpload } from "@/lib/uploads";
 import { requireRole } from "@/lib/auth";
+import { ImageUpload } from "@/components/arc/ImageUpload";
 
 async function updateObject(formData: FormData) {
   "use server";
@@ -101,20 +102,18 @@ export default async function EditObjectPage({ params }: EditObjectPageProps) {
           />
         </label>
 
-        <label className="block text-sm font-medium">
-          Image (JPG or PNG)
-          <input
+        <div>
+          <ImageUpload
             name="image"
-            type="file"
-            accept="image/jpeg,image/png"
-            className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+            label="Object Image"
+            maxSizeMB={5}
           />
-          {object.imageUrl ? (
+          {object.imageUrl && (
             <div className="mt-2 text-xs text-muted-foreground">
-              Current: {object.imageUrl}
+              Current: {object.imageUrl.split('/').pop()}
             </div>
-          ) : null}
-        </label>
+          )}
+        </div>
 
         <label className="block text-sm font-medium">
           Tags

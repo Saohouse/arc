@@ -39,7 +39,7 @@ async function signup(prevState: any, formData: FormData) {
 
   // Check if this is the first user (make them admin)
   const userCount = await prisma.user.count();
-  const role = userCount === 0 ? "admin" : "viewer";
+  const role = userCount === 0 ? "admin" : "editor";
 
   const hashedPassword = await hashPassword(password);
 

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireStory } from "@/lib/story";
 import { saveImageUpload } from "@/lib/uploads";
 import { requireRole } from "@/lib/auth";
+import { ImageUpload } from "@/components/arc/ImageUpload";
 
 async function createEpisode(formData: FormData) {
   "use server";
@@ -162,15 +163,11 @@ export default async function NewEpisodePage() {
           />
         </label>
 
-        <label className="block text-sm font-medium">
-          Thumbnail (JPG or PNG)
-          <input
-            name="thumbnail"
-            type="file"
-            accept="image/jpeg,image/png"
-            className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
-          />
-        </label>
+        <ImageUpload
+          name="thumbnail"
+          label="Thumbnail"
+          maxSizeMB={5}
+        />
 
         <div className="flex flex-wrap items-center gap-3">
           <button

@@ -5,6 +5,7 @@ import { saveImageUpload } from "@/lib/uploads";
 import { requireStory } from "@/lib/story";
 import { LocationSelector } from "@/components/arc/LocationSelector";
 import { requireRole } from "@/lib/auth";
+import { ImageUpload } from "@/components/arc/ImageUpload";
 
 async function updateCharacter(formData: FormData) {
   "use server";
@@ -114,20 +115,18 @@ export default async function EditCharacterPage({
           />
         </label>
 
-        <label className="block text-sm font-medium">
-          Image (JPG or PNG)
-          <input
+        <div>
+          <ImageUpload
             name="image"
-            type="file"
-            accept="image/jpeg,image/png"
-            className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+            label="Portrait"
+            maxSizeMB={5}
           />
-          {character.imageUrl ? (
+          {character.imageUrl && (
             <div className="mt-2 text-xs text-muted-foreground">
-              Current: {character.imageUrl}
+              Current: {character.imageUrl.split('/').pop()}
             </div>
-          ) : null}
-        </label>
+          )}
+        </div>
 
         <LocationSelector
           locations={locations}

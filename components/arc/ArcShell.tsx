@@ -18,11 +18,23 @@ const nav = [
 ];
 
 export async function ArcShell({ children }: { children: React.ReactNode }) {
-  const [currentStory, allStories, currentUser] = await Promise.all([
-    getCurrentStory(),
-    prisma.story.findMany({ orderBy: { createdAt: "asc" } }),
-    getCurrentUser(),
-  ]);
+  const currentUser = await getCurrentUser();
+  
+  // Get stories user has access to
+  const allStories = currentUser
+    ? await prisma.story.findMany({
+        where: {
+          members: {
+            some: {
+              userId: currentUser.id,
+            },
+          },
+        },
+        orderBy: { createdAt: "asc" },
+      })
+    : [];
+
+  const currentStory = await getCurrentStory();
 
   // If no user is logged in, render pages without the ArcShell layout
   // (login, signup pages will handle their own layout)

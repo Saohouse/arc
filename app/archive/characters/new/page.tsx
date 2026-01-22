@@ -5,6 +5,7 @@ import { saveImageUpload } from "@/lib/uploads";
 import { requireStory } from "@/lib/story";
 import { LocationSelector } from "@/components/arc/LocationSelector";
 import { requireRole } from "@/lib/auth";
+import { ImageUpload } from "@/components/arc/ImageUpload";
 
 async function createCharacter(formData: FormData) {
   "use server";
@@ -87,15 +88,11 @@ export default async function NewCharacterPage() {
           />
         </label>
 
-        <label className="block text-sm font-medium">
-          Portrait (JPG or PNG)
-          <input
-            name="image"
-            type="file"
-            accept="image/jpeg,image/png"
-            className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
-          />
-        </label>
+        <ImageUpload
+          name="image"
+          label="Portrait"
+          maxSizeMB={5}
+        />
 
         <label className="block text-sm font-medium">
           Tags

@@ -2,9 +2,15 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { setCurrentStory } from "@/lib/story";
+import { getCurrentUser } from "@/lib/auth";
 
 async function createStory(formData: FormData) {
   "use server";
+
+  const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    redirect("/login");
+  }
 
   const name = String(formData.get("name") ?? "").trim();
   if (!name) {
@@ -13,10 +19,18 @@ async function createStory(formData: FormData) {
 
   const description = String(formData.get("description") ?? "").trim();
 
+  // Create story and add creator as owner in a transaction
   const story = await prisma.story.create({
     data: {
       name,
       description: description || null,
+      members: {
+        create: {
+          userId: currentUser.id,
+          role: "owner",
+          viewedAt: new Date(), // Mark as viewed immediately for creator
+        },
+      },
     },
   });
 

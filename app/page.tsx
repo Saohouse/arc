@@ -4,6 +4,7 @@ import { getCurrentStory } from "@/lib/story";
 import { getCurrentUser } from "@/lib/auth";
 import { RoleGate } from "@/components/arc/RoleGate";
 import { UserMenu } from "@/components/arc/UserMenu";
+import { InvitationPopup } from "@/components/arc/InvitationPopup";
 
 type ActivityItem = {
   id: string;
@@ -18,6 +19,35 @@ export default async function HomePage() {
     getCurrentStory(),
     getCurrentUser(),
   ]);
+
+  // Check for new invitations (not yet viewed)
+  const newInvitations = currentUser
+    ? await prisma.storyMember.findMany({
+        where: {
+          userId: currentUser.id,
+          viewedAt: null,
+          role: "member", // Only show for member invitations, not owner
+        },
+        include: {
+          story: {
+            include: {
+              members: {
+                where: { role: "owner" },
+                include: { user: { select: { name: true } } },
+              },
+            },
+          },
+        },
+      })
+    : [];
+
+  const invitations = newInvitations.map((membership) => ({
+    storyId: membership.storyId,
+    storyName: membership.story.name,
+    storyDescription: membership.story.description,
+    invitedBy: membership.story.members[0]?.user.name || "Someone",
+    membershipId: membership.id,
+  }));
 
   // Show welcome screen if no story exists
   if (!currentStory) {
@@ -335,6 +365,9 @@ export default async function HomePage() {
           </div>
         )}
       </div>
+
+      {/* Show invitation popup if there are new invitations */}
+      <InvitationPopup invitations={invitations} />
     </div>
   );
 }

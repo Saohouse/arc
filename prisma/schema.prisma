@@ -17,7 +17,8 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  sessions Session[]
+  sessions      Session[]
+  storyMembers  StoryMember[]
 }
 
 model Session {
@@ -49,6 +50,24 @@ model Story {
   arcs          Arc[]
   sagas         Saga[]
   tags          Tag[]
+  members       StoryMember[]
+}
+
+model StoryMember {
+  id        String    @id @default(cuid())
+  role      String    @default("member") // owner, member
+  viewedAt  DateTime? // When user first saw this invitation
+  createdAt DateTime  @default(now())
+
+  storyId String
+  story   Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, userId]) // A user can only be a member of a story once
+  @@index([storyId])
+  @@index([userId])
 }
 
 model Tag {

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { saveImageUpload } from "@/lib/uploads";
 import { requireStory } from "@/lib/story";
 import { requireRole } from "@/lib/auth";
+import { ImageUpload } from "@/components/arc/ImageUpload";
 
 async function createWorld(formData: FormData) {
   "use server";
@@ -77,15 +78,11 @@ export default async function NewWorldPage() {
           />
         </label>
 
-        <label className="block text-sm font-medium">
-          Cover Image (JPG or PNG)
-          <input
-            name="image"
-            type="file"
-            accept="image/jpeg,image/png"
-            className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
-          />
-        </label>
+        <ImageUpload
+          name="image"
+          label="Cover Image"
+          maxSizeMB={5}
+        />
 
         <label className="block text-sm font-medium">
           Tags
