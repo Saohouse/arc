@@ -45,7 +45,7 @@ async function updateTag(formData: FormData) {
     ]);
 
     // Update each entity's tags
-    const updatePromises = [];
+    const updatePromises: Promise<unknown>[] = [];
 
     for (const char of characters) {
       if (char.tags) {
