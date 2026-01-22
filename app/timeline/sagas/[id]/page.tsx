@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getCurrentStory } from "@/lib/story";
+import { requireStory } from "@/lib/story";
 import { RoleGate } from "@/components/arc/RoleGate";
 import { DeleteButton } from "@/components/arc/DeleteButton";
 import { requireRole } from "@/lib/auth";
@@ -13,7 +13,7 @@ async function deleteSaga(formData: FormData) {
   const sagaId = String(formData.get("id") ?? "");
   if (!sagaId) return;
 
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
 
   await prisma.saga.deleteMany({
     where: { id: sagaId, storyId: currentStory.id },
@@ -28,7 +28,7 @@ export default async function SagaDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
 
   const saga = await prisma.saga.findFirst({
     where: { id, storyId: currentStory.id },

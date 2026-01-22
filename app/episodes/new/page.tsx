@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getCurrentStory } from "@/lib/story";
+import { requireStory } from "@/lib/story";
 import { saveImageUpload } from "@/lib/uploads";
 import { requireRole } from "@/lib/auth";
 
@@ -15,7 +15,7 @@ async function createEpisode(formData: FormData) {
     return;
   }
 
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
 
   const description = String(formData.get("description") ?? "").trim();
   const script = String(formData.get("script") ?? "").trim();
@@ -50,7 +50,7 @@ async function createEpisode(formData: FormData) {
 
 export default async function NewEpisodePage() {
   await requireRole("editor");
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
 
   // Get the next episode number
   const lastEpisode = await prisma.episode.findFirst({

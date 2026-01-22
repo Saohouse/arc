@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getCurrentStory } from "@/lib/story";
+import { requireStory } from "@/lib/story";
 import { parseTagsString } from "@/lib/tags";
 import { ColorPicker } from "@/components/arc/ColorPicker";
 import { DeleteTagButton } from "@/components/arc/DeleteTagButton";
@@ -16,7 +16,7 @@ async function updateTag(formData: FormData) {
   const oldName = String(formData.get("oldName") ?? "").trim();
   if (!id || !newName) return;
 
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
 
   const color = String(formData.get("color") ?? "").trim() || null;
   const description = String(formData.get("description") ?? "").trim() || null;
@@ -136,7 +136,7 @@ export default async function EditTagPage({ params }: EditTagPageProps) {
   }
 
   // Count usage
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
   const [characters, worlds, locations, objects] = await Promise.all([
     prisma.character.findMany({
       where: { storyId: currentStory.id },

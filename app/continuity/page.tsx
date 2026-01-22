@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { getCurrentStory } from "@/lib/story";
+import { requireStory } from "@/lib/story";
 
 type Issue = {
   id: string;
@@ -13,7 +13,7 @@ type Issue = {
 };
 
 export default async function ContinuityPage() {
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
 
   // Fetch all entities
   const [characters, worlds, locations, objects, relationships] =

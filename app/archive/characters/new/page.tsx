@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { saveImageUpload } from "@/lib/uploads";
-import { getCurrentStory } from "@/lib/story";
+import { requireStory } from "@/lib/story";
 import { LocationSelector } from "@/components/arc/LocationSelector";
 import { requireRole } from "@/lib/auth";
 
@@ -15,7 +15,7 @@ async function createCharacter(formData: FormData) {
     return;
   }
 
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
 
   const title = String(formData.get("title") ?? "").trim();
   const bio = String(formData.get("bio") ?? "").trim();
@@ -50,7 +50,8 @@ async function createCharacter(formData: FormData) {
 
 export default async function NewCharacterPage() {
   await requireRole("editor");
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
+  
   const locations = await prisma.location.findMany({
     where: { storyId: currentStory.id },
     orderBy: { name: "asc" },

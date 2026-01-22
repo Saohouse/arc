@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { saveImageUpload } from "@/lib/uploads";
-import { getCurrentStory } from "@/lib/story";
+import { requireStory } from "@/lib/story";
 import { requireRole } from "@/lib/auth";
 
 async function createObject(formData: FormData) {
@@ -14,7 +14,7 @@ async function createObject(formData: FormData) {
     return;
   }
 
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
 
   const category = String(formData.get("category") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();

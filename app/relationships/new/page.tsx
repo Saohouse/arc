@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getCurrentStory } from "@/lib/story";
+import { requireStory } from "@/lib/story";
 import { requireRole } from "@/lib/auth";
 
 async function createRelationship(formData: FormData) {
@@ -19,7 +19,7 @@ async function createRelationship(formData: FormData) {
     return;
   }
 
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
 
   await prisma.relationship.create({
     data: {
@@ -38,7 +38,7 @@ async function createRelationship(formData: FormData) {
 
 export default async function NewRelationshipPage() {
   await requireRole("editor");
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
 
   // Fetch all entities
   const [characters, worlds, locations, objects] = await Promise.all([

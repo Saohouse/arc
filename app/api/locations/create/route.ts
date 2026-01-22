@@ -13,6 +13,14 @@ export async function POST(request: Request) {
     }
 
     const currentStory = await getCurrentStory();
+    
+    if (!currentStory) {
+      return NextResponse.json(
+        { error: "No story selected. Please create a story first." },
+        { status: 400 }
+      );
+    }
+
     const summary = String(formData.get("summary") ?? "").trim();
     const overview = String(formData.get("overview") ?? "").trim();
     const tagsRaw = String(formData.get("tags") ?? "").trim();

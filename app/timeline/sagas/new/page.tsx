@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getCurrentStory } from "@/lib/story";
+import { requireStory } from "@/lib/story";
 import { ColorPicker } from "@/components/arc/ColorPicker";
 import { requireRole } from "@/lib/auth";
 
@@ -15,7 +15,7 @@ async function createSaga(formData: FormData) {
     return;
   }
 
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
 
   const description = String(formData.get("description") ?? "").trim();
   const status = String(formData.get("status") ?? "planning");
@@ -41,7 +41,7 @@ async function createSaga(formData: FormData) {
 
 export default async function NewSagaPage() {
   await requireRole("editor");
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
 
   // Get the next saga number
   const lastSaga = await prisma.saga.findFirst({

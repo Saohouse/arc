@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getCurrentStory } from "@/lib/story";
+import { requireStory } from "@/lib/story";
 import { requireRole } from "@/lib/auth";
 
 async function updateArc(arcId: string, formData: FormData) {
@@ -14,7 +14,7 @@ async function updateArc(arcId: string, formData: FormData) {
     return;
   }
 
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
 
   const description = String(formData.get("description") ?? "").trim();
   const status = String(formData.get("status") ?? "planning");
@@ -53,7 +53,7 @@ export default async function EditArcPage({
 }) {
   await requireRole("editor");
   const { id } = await params;
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
 
   const arc = await prisma.arc.findFirst({
     where: { id, storyId: currentStory.id },

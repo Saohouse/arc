@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getCurrentStory } from "@/lib/story";
+import { requireStory } from "@/lib/story";
 import { parseTagsString } from "@/lib/tags";
 import { Tag } from "@/components/arc/Tag";
 import { RoleGate } from "@/components/arc/RoleGate";
@@ -19,7 +19,7 @@ export default async function TagViewPage({ params }: TagViewPageProps) {
   });
 
   const tagName = customTag?.name || decodeURIComponent(id);
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
 
   // Fetch all entities with this tag
   const [characters, worlds, locations, objects] = await Promise.all([

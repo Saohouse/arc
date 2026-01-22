@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { getCurrentStory } from "@/lib/story";
+import { requireStory } from "@/lib/story";
 import { parseTagsString } from "@/lib/tags";
 import { RoleGate } from "@/components/arc/RoleGate";
 
 export default async function TagsPage() {
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
 
   // Get all tags from the Tag table
   const customTags = await prisma.tag.findMany({

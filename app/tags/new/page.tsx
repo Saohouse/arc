@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getCurrentStory } from "@/lib/story";
+import { requireStory } from "@/lib/story";
 import { ColorPicker } from "@/components/arc/ColorPicker";
 import { requireRole } from "@/lib/auth";
 
@@ -12,7 +12,7 @@ async function createTag(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;
 
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
 
   const color = String(formData.get("color") ?? "").trim() || null;
   const description = String(formData.get("description") ?? "").trim() || null;

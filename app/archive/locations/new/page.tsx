@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { saveImageUpload } from "@/lib/uploads";
-import { getCurrentStory } from "@/lib/story";
+import { requireStory } from "@/lib/story";
 import { requireRole } from "@/lib/auth";
 
 async function createLocation(formData: FormData) {
@@ -14,7 +14,7 @@ async function createLocation(formData: FormData) {
     return;
   }
 
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
 
   const summary = String(formData.get("summary") ?? "").trim();
   const overview = String(formData.get("overview") ?? "").trim();

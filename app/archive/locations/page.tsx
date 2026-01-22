@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { getCurrentStory } from "@/lib/story";
+import { requireStory } from "@/lib/story";
 import { RoleGate } from "@/components/arc/RoleGate";
 import { LocationsPageClient } from "./LocationsPageClient";
 
 export default async function LocationsPage() {
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
   const [locations, customTags] = await Promise.all([
     prisma.location.findMany({
       where: { storyId: currentStory.id },

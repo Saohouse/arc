@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { getCurrentStory } from "@/lib/story";
+import { requireStory } from "@/lib/story";
 import { RoleGate } from "@/components/arc/RoleGate";
 
 export default async function SagasPage() {
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
   const sagas = await prisma.saga.findMany({
     where: { storyId: currentStory.id },
     orderBy: { number: "asc" },

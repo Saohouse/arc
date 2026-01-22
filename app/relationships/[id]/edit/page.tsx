@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getCurrentStory } from "@/lib/story";
+import { requireStory } from "@/lib/story";
 import { requireRole } from "@/lib/auth";
 
 async function updateRelationship(formData: FormData) {
@@ -42,7 +42,7 @@ export default async function EditRelationshipPage({
     notFound();
   }
 
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
 
   // Fetch all entities
   const [characters, worlds, locations, objects] = await Promise.all([

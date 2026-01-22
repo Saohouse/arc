@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { getCurrentStory } from "@/lib/story";
+import { requireStory } from "@/lib/story";
 import { RoleGate } from "@/components/arc/RoleGate";
 import { ObjectsPageClient } from "./ObjectsPageClient";
 
 export default async function ObjectsPage() {
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
   const [objects, customTags] = await Promise.all([
     prisma.object.findMany({
       where: { storyId: currentStory.id },

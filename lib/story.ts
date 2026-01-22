@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 
 const CURRENT_STORY_COOKIE = "arc_current_story";
@@ -28,4 +29,16 @@ export async function setCurrentStory(storyId: string) {
     path: "/",
     maxAge: 60 * 60 * 24 * 365, // 1 year
   });
+}
+
+/**
+ * Get the current story or redirect to home if none exists.
+ * Use this in pages that require a story to function.
+ */
+export async function requireStory() {
+  const story = await getCurrentStory();
+  if (!story) {
+    redirect("/");
+  }
+  return story;
 }

@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { getCurrentStory } from "@/lib/story";
+import { requireStory } from "@/lib/story";
 import { RelationshipGraph } from "@/components/arc/RelationshipGraph";
 import { RoleGate } from "@/components/arc/RoleGate";
 
 export default async function RelationshipsPage() {
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
   const relationships = await prisma.relationship.findMany({
     where: { storyId: currentStory.id },
     orderBy: { createdAt: "desc" },

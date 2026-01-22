@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { saveImageUpload } from "@/lib/uploads";
-import { getCurrentStory } from "@/lib/story";
+import { requireStory } from "@/lib/story";
 import { LocationSelector } from "@/components/arc/LocationSelector";
 import { requireRole } from "@/lib/auth";
 
@@ -60,7 +60,7 @@ export default async function EditCharacterPage({
 }: EditCharacterPageProps) {
   await requireRole("editor");
   const { id } = await params;
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
   const [character, locations] = await Promise.all([
     prisma.character.findUnique({ where: { id } }),
     prisma.location.findMany({

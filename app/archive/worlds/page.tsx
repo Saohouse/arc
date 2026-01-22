@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { getCurrentStory } from "@/lib/story";
+import { requireStory } from "@/lib/story";
 import { RoleGate } from "@/components/arc/RoleGate";
 import { WorldsPageClient } from "./WorldsPageClient";
 
 export default async function WorldsPage() {
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
   const [worlds, customTags] = await Promise.all([
     prisma.world.findMany({
       where: { storyId: currentStory.id },

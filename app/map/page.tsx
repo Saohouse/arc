@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { getCurrentStory } from "@/lib/story";
+import { requireStory } from "@/lib/story";
 import { InteractiveMap } from "@/components/arc/InteractiveMap";
 
 const MAP_WIDTH = 1000;
@@ -74,7 +74,7 @@ function buildMapLinks(nodes: MapNode[]) {
 }
 
 export default async function MapPage() {
-  const currentStory = await getCurrentStory();
+  const currentStory = await requireStory();
 
   const locations = await prisma.location.findMany({
     where: { storyId: currentStory.id },
