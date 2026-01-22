@@ -46,7 +46,7 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
     select: { id: true, name: true, color: true },
   });
 
-  const tagDataMap = new Map(
+  const tagDataMap = new Map<string, { id: string; color: string | null }>(
     customTags.map((t) => [t.name, { id: t.id, color: t.color }])
   );
 

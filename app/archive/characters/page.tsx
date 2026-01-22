@@ -17,7 +17,7 @@ export default async function CharactersPage() {
     }),
   ]);
 
-  const tagColorMap = new Map(
+  const tagColorMap = new Map<string, string | null>(
     customTags.map((t) => [t.name, t.color])
   );
 

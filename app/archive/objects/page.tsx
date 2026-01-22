@@ -17,7 +17,7 @@ export default async function ObjectsPage() {
     }),
   ]);
 
-  const tagColorMap = new Map(
+  const tagColorMap = new Map<string, string | null>(
     customTags.map((t) => [t.name, t.color])
   );
 
