@@ -18,9 +18,9 @@ export default async function UsersPage() {
 
   const stats = {
     total: users.length,
-    admins: users.filter((u) => u.role === "admin").length,
-    editors: users.filter((u) => u.role === "editor").length,
-    viewers: users.filter((u) => u.role === "viewer").length,
+    admins: users.filter((u: { role: string }) => u.role === "admin").length,
+    editors: users.filter((u: { role: string }) => u.role === "editor").length,
+    viewers: users.filter((u: { role: string }) => u.role === "viewer").length,
   };
 
   return (
