@@ -102,18 +102,12 @@ export default async function EditObjectPage({ params }: EditObjectPageProps) {
           />
         </label>
 
-        <div>
-          <ImageUpload
-            name="image"
-            label="Object Image"
-            maxSizeMB={5}
-          />
-          {object.imageUrl && (
-            <div className="mt-2 text-xs text-muted-foreground">
-              Current: {object.imageUrl.split('/').pop()}
-            </div>
-          )}
-        </div>
+        <ImageUpload
+          name="image"
+          label="Object Image"
+          currentImageUrl={object.imageUrl}
+          maxSizeMB={5}
+        />
 
         <label className="block text-sm font-medium">
           Tags

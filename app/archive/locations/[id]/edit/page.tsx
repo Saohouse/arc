@@ -104,18 +104,12 @@ export default async function EditLocationPage({
           />
         </label>
 
-        <div>
-          <ImageUpload
-            name="image"
-            label="Location Image"
-            maxSizeMB={5}
-          />
-          {location.imageUrl && (
-            <div className="mt-2 text-xs text-muted-foreground">
-              Current: {location.imageUrl.split('/').pop()}
-            </div>
-          )}
-        </div>
+        <ImageUpload
+          name="image"
+          label="Location Image"
+          currentImageUrl={location.imageUrl}
+          maxSizeMB={5}
+        />
 
         <label className="block text-sm font-medium">
           Tags

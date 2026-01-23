@@ -1,5 +1,6 @@
-import { put } from "@vercel/blob";
 import crypto from "node:crypto";
+import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png"]);
 
@@ -25,11 +26,16 @@ export async function saveImageUpload(file: File, prefix: string) {
 
   const filename = `${prefix}-${crypto.randomUUID()}.${ext}`;
 
-  // Upload to Vercel Blob
-  const blob = await put(filename, file, {
-    access: "public",
-    token: process.env.BLOB_READ_WRITE_TOKEN,
-  });
+  // Convert File to Buffer
+  const bytes = await file.arrayBuffer();
+  const buffer = Buffer.from(bytes);
 
-  return blob.url;
+  // Save to public/uploads directory
+  const uploadDir = join(process.cwd(), "public", "uploads");
+  const filePath = join(uploadDir, filename);
+  
+  await writeFile(filePath, buffer);
+
+  // Return the public URL path
+  return `/uploads/${filename}`;
 }

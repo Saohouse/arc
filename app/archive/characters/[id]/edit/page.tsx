@@ -115,18 +115,12 @@ export default async function EditCharacterPage({
           />
         </label>
 
-        <div>
-          <ImageUpload
-            name="image"
-            label="Portrait"
-            maxSizeMB={5}
-          />
-          {character.imageUrl && (
-            <div className="mt-2 text-xs text-muted-foreground">
-              Current: {character.imageUrl.split('/').pop()}
-            </div>
-          )}
-        </div>
+        <ImageUpload
+          name="image"
+          label="Portrait"
+          currentImageUrl={character.imageUrl}
+          maxSizeMB={5}
+        />
 
         <LocationSelector
           locations={locations}

@@ -102,18 +102,12 @@ export default async function EditWorldPage({ params }: EditWorldPageProps) {
           />
         </label>
 
-        <div>
-          <ImageUpload
-            name="image"
-            label="Cover Image"
-            maxSizeMB={5}
-          />
-          {world.imageUrl && (
-            <div className="mt-2 text-xs text-muted-foreground">
-              Current: {world.imageUrl.split('/').pop()}
-            </div>
-          )}
-        </div>
+        <ImageUpload
+          name="image"
+          label="Cover Image"
+          currentImageUrl={world.imageUrl}
+          maxSizeMB={5}
+        />
 
         <label className="block text-sm font-medium">
           Tags
