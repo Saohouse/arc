@@ -9,17 +9,25 @@ async function updateRelationship(formData: FormData) {
   await requireRole("editor");
 
   const id = String(formData.get("id") ?? "");
+  const sourceType = String(formData.get("sourceType") ?? "");
+  const sourceId = String(formData.get("sourceId") ?? "");
   const type = String(formData.get("type") ?? "").trim();
+  const targetType = String(formData.get("targetType") ?? "");
+  const targetId = String(formData.get("targetId") ?? "");
   const notes = String(formData.get("notes") ?? "").trim();
 
-  if (!id || !type) {
+  if (!id || !sourceType || !sourceId || !type || !targetType || !targetId) {
     return;
   }
 
   await prisma.relationship.update({
     where: { id },
     data: {
+      sourceType,
+      sourceId,
       type,
+      targetType,
+      targetId,
       notes: notes || null,
     },
   });
@@ -103,6 +111,13 @@ export default async function EditRelationshipPage({
     }
   };
 
+  const entityGroups = [
+    { type: "character", label: "👤 Characters", items: characters },
+    { type: "world", label: "🌍 Worlds", items: worlds },
+    { type: "location", label: "📍 Locations", items: locations },
+    { type: "object", label: "🔮 Objects", items: objects },
+  ];
+
   return (
     <div className="max-w-2xl space-y-6">
       <div>
@@ -110,31 +125,93 @@ export default async function EditRelationshipPage({
           Relationships / Edit
         </div>
         <h1 className="text-3xl font-semibold">Edit relationship</h1>
-      </div>
-
-      <div className="rounded border p-4 bg-muted/50">
-        <div className="flex items-center gap-4 text-sm">
-          <div>
-            {getEntityEmoji(relationship.sourceType)}{" "}
-            <span className="font-semibold">
-              {getEntityName(relationship.sourceType, relationship.sourceId)}
-            </span>
-          </div>
-          <span className="text-muted-foreground">→</span>
-          <div>
-            {getEntityEmoji(relationship.targetType)}{" "}
-            <span className="font-semibold">
-              {getEntityName(relationship.targetType, relationship.targetId)}
-            </span>
-          </div>
-        </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Source and target entities cannot be changed
+        <p className="text-sm text-muted-foreground">
+          Update the connection between entities.
         </p>
       </div>
 
       <form action={updateRelationship} className="space-y-5">
         <input type="hidden" name="id" value={relationship.id} />
+
+        <div className="grid gap-5 md:grid-cols-2">
+          {/* Source Entity */}
+          <div className="space-y-3">
+            <label className="block text-sm font-medium">Source Entity</label>
+            <select
+              name="sourceType"
+              required
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              defaultValue={relationship.sourceType}
+            >
+              <option value="" disabled>
+                Select type...
+              </option>
+              <option value="character">👤 Character</option>
+              <option value="world">🌍 World</option>
+              <option value="location">📍 Location</option>
+              <option value="object">🔮 Object</option>
+            </select>
+
+            <select
+              name="sourceId"
+              required
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              defaultValue={relationship.sourceId}
+            >
+              <option value="" disabled>
+                Select entity...
+              </option>
+              {entityGroups.map((group) => (
+                <optgroup key={group.type} label={group.label}>
+                  {group.items.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+
+          {/* Target Entity */}
+          <div className="space-y-3">
+            <label className="block text-sm font-medium">Target Entity</label>
+            <select
+              name="targetType"
+              required
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              defaultValue={relationship.targetType}
+            >
+              <option value="" disabled>
+                Select type...
+              </option>
+              <option value="character">👤 Character</option>
+              <option value="world">🌍 World</option>
+              <option value="location">📍 Location</option>
+              <option value="object">🔮 Object</option>
+            </select>
+
+            <select
+              name="targetId"
+              required
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              defaultValue={relationship.targetId}
+            >
+              <option value="" disabled>
+                Select entity...
+              </option>
+              {entityGroups.map((group) => (
+                <optgroup key={group.type} label={group.label}>
+                  {group.items.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+        </div>
 
         <label className="block text-sm font-medium">
           Relationship Type
