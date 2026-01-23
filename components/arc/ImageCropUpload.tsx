@@ -83,6 +83,11 @@ export function ImageCropUpload({
       
       setCroppedFile(croppedImage);
       
+      // Clear the visible file input to avoid conflicts
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      
       // Update the hidden file input with the cropped file
       const dataTransfer = new DataTransfer();
       dataTransfer.items.add(croppedImage);
@@ -194,23 +199,26 @@ export function ImageCropUpload({
         </div>
       )}
 
-      {/* File Input (visible) */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept={accept}
-        required={required && !croppedFile && !currentImageUrl}
-        onChange={handleFileSelect}
-        className="w-full rounded-md border bg-background px-3 py-2 text-sm file:mr-4 file:rounded file:border-0 file:bg-muted file:px-3 file:py-1 file:text-sm file:font-medium hover:file:bg-muted/80"
-      />
+      {/* Show file input only if no cropped file exists */}
+      {!croppedFile && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={accept}
+          required={required && !croppedFile && !currentImageUrl}
+          onChange={handleFileSelect}
+          className="w-full rounded-md border bg-background px-3 py-2 text-sm file:mr-4 file:rounded file:border-0 file:bg-muted file:px-3 file:py-1 file:text-sm file:font-medium hover:file:bg-muted/80"
+        />
+      )}
 
-      {/* Hidden file input that holds the cropped image */}
+      {/* Hidden file input that holds the cropped image for form submission */}
       <input
         ref={hiddenFileInputRef}
         type="file"
         name={name}
         className="hidden"
         tabIndex={-1}
+        aria-hidden="true"
       />
 
       {/* Success State */}
