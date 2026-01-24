@@ -24,23 +24,29 @@ function dataURLtoFile(dataUrl: string, filename: string): File {
   return new File([u8arr], filename, { type: mime });
 }
 
-export async function saveImageUpload(file: File | string, prefix: string) {
+export async function saveImageUpload(fileOrDataUrl: File | string, prefix: string) {
+  let file: File;
+  
   // Handle data URL string (from cropped images)
-  if (typeof file === 'string' && file.startsWith('data:')) {
-    const ext = file.includes('image/png') ? 'png' : 'jpg';
+  if (typeof fileOrDataUrl === 'string' && fileOrDataUrl.startsWith('data:')) {
+    const ext = fileOrDataUrl.includes('image/png') ? 'png' : 'jpg';
     const filename = `${prefix}-${crypto.randomUUID()}.${ext}`;
-    file = dataURLtoFile(file, filename);
+    file = dataURLtoFile(fileOrDataUrl, filename);
+  } else if (fileOrDataUrl instanceof File) {
+    file = fileOrDataUrl;
+  } else {
+    return null;
   }
   
-  if (!file || (file instanceof File && file.size === 0)) {
+  if (!file || file.size === 0) {
     return null;
   }
 
-  if (file instanceof File && !ALLOWED_TYPES.has(file.type)) {
+  if (!ALLOWED_TYPES.has(file.type)) {
     throw new Error("Unsupported image type. Use JPG or PNG.");
   }
 
-  const ext = file instanceof File ? extensionForType(file.type) : null;
+  const ext = extensionForType(file.type);
   if (!ext) {
     throw new Error("Unsupported image type. Use JPG or PNG.");
   }
