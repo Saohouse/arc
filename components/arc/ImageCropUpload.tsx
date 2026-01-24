@@ -97,9 +97,7 @@ export function ImageCropUpload({
     setImageSrc(null);
     setCrop({ x: 0, y: 0 });
     setZoom(1);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    // Don't clear the file input - let the file upload normally
   };
 
   const handleEditExisting = async () => {
@@ -179,7 +177,7 @@ export function ImageCropUpload({
                   onClick={handleCropCancel}
                   className="rounded border px-5 py-2.5 text-[13px] font-medium hover:bg-muted transition-colors"
                 >
-                  Cancel
+                  Skip Crop / Upload Original
                 </button>
                 <button
                   type="button"
@@ -198,6 +196,7 @@ export function ImageCropUpload({
       {!croppedDataUrl && (
         <input
           ref={fileInputRef}
+          name={name}
           type="file"
           accept={accept}
           required={required && !croppedDataUrl && !currentImageUrl}
@@ -206,13 +205,21 @@ export function ImageCropUpload({
         />
       )}
 
-      {/* Hidden input to store cropped image data URL */}
+      {/* Hidden input to store cropped image data URL - only when cropped */}
       {croppedDataUrl && (
-        <input
-          type="hidden"
-          name={`${name}_data`}
-          value={croppedDataUrl}
-        />
+        <>
+          <input
+            type="hidden"
+            name={`${name}_data`}
+            value={croppedDataUrl}
+          />
+          {/* Also hide the regular file input when we have cropped data */}
+          <input
+            type="hidden"
+            name={name}
+            value=""
+          />
+        </>
       )}
 
       {/* Success State */}
