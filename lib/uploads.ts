@@ -53,14 +53,18 @@ export async function saveImageUpload(fileOrDataUrl: File | string, prefix: stri
 
   const filename = `${prefix}-${crypto.randomUUID()}.${ext}`;
 
-  // Check if we're in production (Vercel) or development
-  const isProduction = process.env.NODE_ENV === "production";
+  // Always use Vercel Blob in serverless environments (Vercel production)
   const hasVercelToken = !!process.env.BLOB_READ_WRITE_TOKEN;
+  const isVercel = !!process.env.VERCEL;
 
   try {
-    if (isProduction && hasVercelToken) {
+    if (hasVercelToken || isVercel) {
       // Use Vercel Blob in production
       const { put } = await import("@vercel/blob");
+      
+      if (!process.env.BLOB_READ_WRITE_TOKEN) {
+        throw new Error("BLOB_READ_WRITE_TOKEN environment variable is required for production uploads");
+      }
       
       // Convert File to ArrayBuffer for Vercel Blob
       const arrayBuffer = await file.arrayBuffer();
@@ -72,7 +76,7 @@ export async function saveImageUpload(fileOrDataUrl: File | string, prefix: stri
       });
       return result.url;
     } else {
-      // Use local filesystem in development
+      // Use local filesystem in development only
       const { writeFile } = await import("node:fs/promises");
       const { join } = await import("node:path");
       
@@ -89,6 +93,11 @@ export async function saveImageUpload(fileOrDataUrl: File | string, prefix: stri
     }
   } catch (error) {
     console.error("Upload error:", error);
+    console.error("Environment:", { 
+      hasVercelToken, 
+      isVercel,
+      NODE_ENV: process.env.NODE_ENV 
+    });
     throw new Error(`Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
