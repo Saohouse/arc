@@ -11,7 +11,7 @@ type ImageCropUploadProps = {
   maxSizeMB?: number;
   accept?: string;
   required?: boolean;
-  aspectRatio?: number; // e.g. 1 for square, 16/9 for wide, 4/3, etc.
+  aspectRatio?: number;
 };
 
 export function ImageCropUpload({
@@ -30,11 +30,10 @@ export function ImageCropUpload({
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [originalFile, setOriginalFile] = useState<File | null>(null);
-  const [croppedFile, setCroppedFile] = useState<File | null>(null);
+  const [croppedDataUrl, setCroppedDataUrl] = useState<string | null>(null);
   const [isEditingExisting, setIsEditingExisting] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const hiddenFileInputRef = useRef<HTMLInputElement>(null);
 
   const onCropComplete = useCallback(
     (croppedArea: Area, croppedAreaPixels: Area) => {
@@ -62,7 +61,7 @@ export function ImageCropUpload({
       setImageSrc(imageDataUrl);
       setOriginalFile(file);
       setFileName(file.name);
-      setCroppedFile(null);
+      setCroppedDataUrl(null);
       setIsEditingExisting(false);
     } catch (err) {
       setError("Failed to read image file");
@@ -81,19 +80,9 @@ export function ImageCropUpload({
         originalFile.type
       );
       
-      setCroppedFile(croppedImage);
-      
-      // Clear the visible file input to avoid conflicts
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-      
-      // Update the hidden file input with the cropped file
-      const dataTransfer = new DataTransfer();
-      dataTransfer.items.add(croppedImage);
-      if (hiddenFileInputRef.current) {
-        hiddenFileInputRef.current.files = dataTransfer.files;
-      }
+      // Convert the cropped File to a data URL for storing
+      const dataUrl = await readFile(croppedImage);
+      setCroppedDataUrl(dataUrl);
       
       // Close the crop editor
       setImageSrc(null);
@@ -134,11 +123,17 @@ export function ImageCropUpload({
   };
 
   const handleRecrop = () => {
-    if (croppedFile) {
-      readFile(croppedFile).then((dataUrl) => {
-        setImageSrc(dataUrl);
-        setCroppedFile(null);
-      });
+    if (croppedDataUrl) {
+      setImageSrc(croppedDataUrl);
+      setCroppedDataUrl(null);
+    }
+  };
+
+  const handleRemoveCrop = () => {
+    setCroppedDataUrl(null);
+    setFileName(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
@@ -199,51 +194,64 @@ export function ImageCropUpload({
         </div>
       )}
 
-      {/* Show file input only if no cropped file exists */}
-      {!croppedFile && (
+      {/* Show file input only if no cropped image exists */}
+      {!croppedDataUrl && (
         <input
           ref={fileInputRef}
           type="file"
           accept={accept}
-          required={required && !croppedFile && !currentImageUrl}
+          required={required && !croppedDataUrl && !currentImageUrl}
           onChange={handleFileSelect}
           className="w-full rounded-md border bg-background px-3 py-2 text-sm file:mr-4 file:rounded file:border-0 file:bg-muted file:px-3 file:py-1 file:text-sm file:font-medium hover:file:bg-muted/80"
         />
       )}
 
-      {/* Hidden file input that holds the cropped image for form submission */}
-      <input
-        ref={hiddenFileInputRef}
-        type="file"
-        name={name}
-        className="hidden"
-        tabIndex={-1}
-        aria-hidden="true"
-      />
+      {/* Hidden input to store cropped image data URL */}
+      {croppedDataUrl && (
+        <input
+          type="hidden"
+          name={`${name}_data`}
+          value={croppedDataUrl}
+        />
+      )}
 
       {/* Success State */}
-      {croppedFile && (
-        <div className="flex items-center justify-between rounded-md border border-green-200 bg-green-50 p-3 dark:border-green-900 dark:bg-green-950/30">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-green-900 dark:text-green-400">
-              ✓ Image cropped and ready
-            </span>
-            <span className="text-xs text-green-700 dark:text-green-300">
-              ({(croppedFile.size / 1024).toFixed(1)} KB)
-            </span>
+      {croppedDataUrl && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between rounded-md border border-green-200 bg-green-50 p-3 dark:border-green-900 dark:bg-green-950/30">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-green-900 dark:text-green-400">
+                ✓ Image cropped and ready
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleRecrop}
+                className="text-xs font-medium text-green-900 hover:underline dark:text-green-400"
+              >
+                Re-crop
+              </button>
+              <button
+                type="button"
+                onClick={handleRemoveCrop}
+                className="text-xs font-medium text-red-600 hover:underline dark:text-red-400"
+              >
+                Remove
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={handleRecrop}
-            className="text-xs font-medium text-green-900 hover:underline dark:text-green-400"
-          >
-            Re-crop
-          </button>
+          {/* Preview */}
+          <img
+            src={croppedDataUrl}
+            alt="Cropped preview"
+            className="h-32 w-32 rounded-lg border object-cover"
+          />
         </div>
       )}
 
       {/* Current Image */}
-      {currentImageUrl && !croppedFile && (
+      {currentImageUrl && !croppedDataUrl && (
         <div className="space-y-2">
           <div className="relative inline-block">
             <img

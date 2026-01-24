@@ -8,16 +8,39 @@ function extensionForType(type: string) {
   return null;
 }
 
-export async function saveImageUpload(file: File, prefix: string) {
-  if (!file || file.size === 0) {
+/**
+ * Convert a data URL to a File object
+ */
+function dataURLtoFile(dataUrl: string, filename: string): File {
+  const arr = dataUrl.split(',');
+  const mimeMatch = arr[0].match(/:(.*?);/);
+  const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while(n--){
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new File([u8arr], filename, { type: mime });
+}
+
+export async function saveImageUpload(file: File | string, prefix: string) {
+  // Handle data URL string (from cropped images)
+  if (typeof file === 'string' && file.startsWith('data:')) {
+    const ext = file.includes('image/png') ? 'png' : 'jpg';
+    const filename = `${prefix}-${crypto.randomUUID()}.${ext}`;
+    file = dataURLtoFile(file, filename);
+  }
+  
+  if (!file || (file instanceof File && file.size === 0)) {
     return null;
   }
 
-  if (!ALLOWED_TYPES.has(file.type)) {
+  if (file instanceof File && !ALLOWED_TYPES.has(file.type)) {
     throw new Error("Unsupported image type. Use JPG or PNG.");
   }
 
-  const ext = extensionForType(file.type);
+  const ext = file instanceof File ? extensionForType(file.type) : null;
   if (!ext) {
     throw new Error("Unsupported image type. Use JPG or PNG.");
   }

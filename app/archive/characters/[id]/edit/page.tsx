@@ -28,9 +28,16 @@ async function updateCharacter(formData: FormData) {
   const homeLocationId = String(formData.get("homeLocationId") ?? "").trim();
 
   const imageFile = formData.get("image");
+  const imageData = formData.get("image_data"); // Cropped image data URL
   let imageUrl = String(formData.get("existingImageUrl") ?? "");
 
-  if (imageFile instanceof File && imageFile.size > 0) {
+  // Handle cropped image (data URL) or regular file upload
+  if (imageData && typeof imageData === 'string' && imageData.startsWith('data:')) {
+    const uploadedPath = await saveImageUpload(imageData, "character");
+    if (uploadedPath) {
+      imageUrl = uploadedPath;
+    }
+  } else if (imageFile instanceof File && imageFile.size > 0) {
     const uploadedPath = await saveImageUpload(imageFile, "character");
     if (uploadedPath) {
       imageUrl = uploadedPath;
