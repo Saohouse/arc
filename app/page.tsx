@@ -241,40 +241,48 @@ export default async function HomePage() {
       <div className="grid gap-6 md:grid-cols-4">
         <Link
           href="/archive/characters"
-          className="group rounded border bg-card p-8 transition-all hover:border-foreground/40 hover:shadow-sm"
+          className="card-enhanced group p-10"
         >
-          <div className="text-4xl font-semibold tracking-tight">{totalCharacters}</div>
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-2">
+          <div className="text-5xl font-bold tracking-tight bg-gradient-to-br from-blue-600 to-blue-400 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent">
+            {totalCharacters}
+          </div>
+          <div className="text-[11px] uppercase tracking-[0.15em] text-muted-foreground mt-3 font-semibold">
             👤 {totalCharacters === 1 ? "Character" : "Characters"}
           </div>
         </Link>
 
         <Link
           href="/archive/worlds"
-          className="group rounded border bg-card p-8 transition-all hover:border-foreground/40 hover:shadow-sm"
+          className="card-enhanced group p-10"
         >
-          <div className="text-4xl font-semibold tracking-tight">{totalWorlds}</div>
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-2">
+          <div className="text-5xl font-bold tracking-tight bg-gradient-to-br from-purple-600 to-purple-400 dark:from-purple-400 dark:to-purple-600 bg-clip-text text-transparent">
+            {totalWorlds}
+          </div>
+          <div className="text-[11px] uppercase tracking-[0.15em] text-muted-foreground mt-3 font-semibold">
             🌍 {totalWorlds === 1 ? "World" : "Worlds"}
           </div>
         </Link>
 
         <Link
           href="/archive/locations"
-          className="group rounded border bg-card p-8 transition-all hover:border-foreground/40 hover:shadow-sm"
+          className="card-enhanced group p-10"
         >
-          <div className="text-4xl font-semibold tracking-tight">{totalLocations}</div>
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-2">
+          <div className="text-5xl font-bold tracking-tight bg-gradient-to-br from-emerald-600 to-emerald-400 dark:from-emerald-400 dark:to-emerald-600 bg-clip-text text-transparent">
+            {totalLocations}
+          </div>
+          <div className="text-[11px] uppercase tracking-[0.15em] text-muted-foreground mt-3 font-semibold">
             📍 {totalLocations === 1 ? "Location" : "Locations"}
           </div>
         </Link>
 
         <Link
           href="/archive/objects"
-          className="group rounded border bg-card p-8 transition-all hover:border-foreground/40 hover:shadow-sm"
+          className="card-enhanced group p-10"
         >
-          <div className="text-4xl font-semibold tracking-tight">{totalObjects}</div>
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-2">
+          <div className="text-5xl font-bold tracking-tight bg-gradient-to-br from-amber-600 to-amber-400 dark:from-amber-400 dark:to-amber-600 bg-clip-text text-transparent">
+            {totalObjects}
+          </div>
+          <div className="text-[11px] uppercase tracking-[0.15em] text-muted-foreground mt-3 font-semibold">
             🔮 {totalObjects === 1 ? "Object" : "Objects"}
           </div>
         </Link>
@@ -335,7 +343,7 @@ export default async function HomePage() {
                 <Link
                   key={`${item.type}-${item.id}`}
                   href={config.href(item.id)}
-                  className="block rounded border bg-card p-5 transition-all hover:border-foreground/40 hover:shadow-sm"
+                  className="card-enhanced block p-6"
                 >
                   <div className="flex items-start justify-between gap-6">
                     <div className="flex-1 space-y-1.5">

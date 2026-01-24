@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import Link from "next/link";
 import { StoryMemberRoleSelector } from "@/components/arc/StoryMemberRoleSelector";
+import { RemoveMemberButton } from "@/components/arc/RemoveMemberButton";
 
 async function inviteMember(formData: FormData) {
   "use server";
@@ -260,16 +261,12 @@ export default async function StorySettingsPage({
                     disabled={!isOwner || member.userId === currentUser.id}
                   />
                   {isOwner && member.userId !== currentUser.id && (
-                    <form action={removeMember}>
-                      <input type="hidden" name="storyId" value={storyId} />
-                      <input type="hidden" name="userId" value={member.userId} />
-                      <button
-                        type="submit"
-                        className="text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                      >
-                        Remove
-                      </button>
-                    </form>
+                    <RemoveMemberButton
+                      storyId={storyId}
+                      userId={member.userId}
+                      userName={member.user.name}
+                      action={removeMember}
+                    />
                   )}
                 </div>
               </div>

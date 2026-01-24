@@ -5,16 +5,15 @@ import { getCurrentStory } from "@/lib/story";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { UserMenu } from "@/components/arc/UserMenu";
-import { headers } from "next/headers";
 
 const nav = [
-  { href: "/archive", label: "📚 Archive" },
-  { href: "/episodes", label: "📺 Episodes" },
-  { href: "/timeline", label: "📅 Timeline" },
-  { href: "/relationships", label: "🔗 Relationships" },
-  { href: "/continuity", label: "⏱️ Continuity" },
-  { href: "/tags", label: "🏷️ Tags" },
-  { href: "/map", label: "🗺️ Map" },
+  { href: "/archive", label: "Archive", icon: "📚" },
+  { href: "/episodes", label: "Episodes", icon: "📺" },
+  { href: "/timeline", label: "Timeline", icon: "📅" },
+  { href: "/relationships", label: "Relationships", icon: "🔗" },
+  { href: "/continuity", label: "Continuity", icon: "⏱️" },
+  { href: "/tags", label: "Tags", icon: "🏷️" },
+  { href: "/map", label: "Map", icon: "🗺️" },
 ];
 
 export async function ArcShell({ children }: { children: React.ReactNode }) {
@@ -37,53 +36,67 @@ export async function ArcShell({ children }: { children: React.ReactNode }) {
   const currentStory = await getCurrentStory();
 
   // If no user is logged in, render pages without the ArcShell layout
-  // (login, signup pages will handle their own layout)
   if (!currentUser) {
     return <>{children}</>;
   }
 
   // If logged in but no story exists, just render children directly
-  // (home page will show welcome screen, or stories/new will show create form)
   if (!currentStory) {
     return <>{children}</>;
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen gradient-bg">
       <div className="flex">
-        <aside className="w-64 shrink-0 border-r min-h-screen p-6 flex flex-col">
-          <Link href="/" className="mb-6 block transition-opacity hover:opacity-60">
-            <div className="text-xl font-semibold tracking-tight">ARC</div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">
+        {/* Sidebar with glassmorphism */}
+        <aside className="w-72 shrink-0 min-h-screen p-6 flex flex-col glass-strong sticky top-0 shadow-xl">
+          {/* Logo */}
+          <Link 
+            href="/" 
+            className="mb-8 block group"
+          >
+            <div className="text-2xl font-bold tracking-tight text-foreground/90 group-hover:text-foreground transition-colors">
+              ARC
+            </div>
+            <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground mt-1.5 group-hover:text-accent transition-colors">
               Archive · Relationships · Continuity
             </div>
           </Link>
 
-          <StorySelector currentStory={currentStory} allStories={allStories} />
+          {/* Story Selector */}
+          <div className="mb-6">
+            <StorySelector currentStory={currentStory} allStories={allStories} />
+          </div>
 
-          <Separator className="my-6" />
+          <Separator className="my-6 bg-border/50" />
 
-          <nav className="flex-1 space-y-0.5">
+          {/* Navigation */}
+          <nav className="flex-1 space-y-1.5">
             {nav.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="block rounded px-3 py-2.5 text-[13px] tracking-tight hover:bg-muted transition-colors"
+                className="nav-link flex items-center gap-3"
               >
-                {item.label}
+                <span className="text-lg">{item.icon}</span>
+                <span>{item.label}</span>
               </Link>
             ))}
           </nav>
 
+          {/* User Menu */}
           {currentUser && (
             <>
-              <Separator className="my-6" />
+              <Separator className="my-6 bg-border/50" />
               <UserMenu user={currentUser} />
             </>
           )}
         </aside>
 
-        <main className="flex-1 p-8 max-w-7xl">{children}</main>
+        {/* Main Content */}
+        <main className="flex-1 p-10 max-w-7xl">
+          {children}
+        </main>
       </div>
     </div>
   );

@@ -66,7 +66,7 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
           <RoleGate allowedRoles={["editor", "admin"]}>
             <Link
               href={`/archive/characters/${character.id}/edit`}
-              className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background hover:bg-foreground/90"
+              className="rounded-lg bg-foreground px-5 py-2.5 text-[13px] font-medium text-background hover:bg-foreground/90 transition-all"
             >
               Edit
             </Link>
