@@ -56,7 +56,9 @@ export async function saveImageUpload(fileOrDataUrl: File | string, prefix: stri
       }
       
       const { put } = await import("@vercel/blob");
-      const blob = new Blob([buffer], { type: mimeType });
+      // Convert Buffer to Uint8Array for Blob compatibility
+      const uint8Array = new Uint8Array(buffer);
+      const blob = new Blob([uint8Array], { type: mimeType });
       
       const result = await put(filename, blob, {
         access: "public",
@@ -110,7 +112,9 @@ export async function saveImageUpload(fileOrDataUrl: File | string, prefix: stri
       
       const { put } = await import("@vercel/blob");
       const arrayBuffer = await file.arrayBuffer();
-      const blob = new Blob([arrayBuffer], { type: file.type });
+      // Convert to Uint8Array for Blob compatibility
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const blob = new Blob([uint8Array], { type: file.type });
       
       const result = await put(filename, blob, {
         access: "public",
