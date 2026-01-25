@@ -19,6 +19,7 @@ export function CharacterWizardForm({
   isFromAI 
 }: CharacterWizardFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(isFromAI); // Loading state for AI data
   const formRef = useRef<HTMLFormElement>(null);
   const isEditMode = !!characterName;
   const [aiData, setAiData] = useState<any>(null);
@@ -39,6 +40,7 @@ export function CharacterWizardForm({
           console.error("Failed to load AI data:", e);
         }
       }
+      setIsLoading(false);
     }
   }, [isFromAI]);
 
@@ -93,12 +95,25 @@ export function CharacterWizardForm({
     }
   };
 
+  // Show loading state while AI data loads
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">Loading AI-generated character...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <form ref={formRef}>
       <CharacterWizard 
         onSave={handleSave} 
         characterName={aiData?.name || characterName}
         initialData={loadedInitialData}
+        key={isFromAI ? 'ai-wizard' : 'manual-wizard'} // Force remount with AI data
       />
       {isSubmitting && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
