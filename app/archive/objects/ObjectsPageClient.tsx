@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Tag } from "@/components/arc/Tag";
 import { parseTagsString } from "@/lib/tags";
 import { SortableList } from "@/components/arc/SortableList";
@@ -29,18 +29,21 @@ type ObjectsListProps = {
 
 function ObjectsList({ storyId, objects, tagColorMap }: ObjectsListProps) {
   const [isCompact, setIsCompact] = useState(false);
-  const [sortMode, setSortMode] = useState<SortMode>(() => {
-    if (typeof window !== "undefined") {
-      return (localStorage.getItem("objects-sort-mode") as SortMode) || "custom";
+  const [sortMode, setSortMode] = useState<SortMode>("custom");
+  const [mounted, setMounted] = useState(false);
+
+  // Load sort mode from localStorage after hydration
+  useEffect(() => {
+    setMounted(true);
+    const saved = localStorage.getItem("objects-sort-mode") as SortMode;
+    if (saved === "alphabetical" || saved === "date-created") {
+      setSortMode(saved);
     }
-    return "custom";
-  });
+  }, []);
 
   const handleSortModeChange = (mode: SortMode) => {
     setSortMode(mode);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("objects-sort-mode", mode);
-    }
+    localStorage.setItem("objects-sort-mode", mode);
   };
 
   const sortedObjects = useMemo(() => {

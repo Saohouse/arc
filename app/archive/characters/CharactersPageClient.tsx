@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Tag } from "@/components/arc/Tag";
 import { parseTagsString } from "@/lib/tags";
 import { SortableList } from "@/components/arc/SortableList";
@@ -29,18 +29,21 @@ type CharactersListProps = {
 
 function CharactersList({ storyId, characters, tagColorMap }: CharactersListProps) {
   const [isCompact, setIsCompact] = useState(false);
-  const [sortMode, setSortMode] = useState<SortMode>(() => {
-    if (typeof window !== "undefined") {
-      return (localStorage.getItem("characters-sort-mode") as SortMode) || "custom";
+  const [sortMode, setSortMode] = useState<SortMode>("custom");
+  const [mounted, setMounted] = useState(false);
+
+  // Load sort mode from localStorage after hydration
+  useEffect(() => {
+    setMounted(true);
+    const saved = localStorage.getItem("characters-sort-mode") as SortMode;
+    if (saved === "alphabetical" || saved === "date-created") {
+      setSortMode(saved);
     }
-    return "custom";
-  });
+  }, []);
 
   const handleSortModeChange = (mode: SortMode) => {
     setSortMode(mode);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("characters-sort-mode", mode);
-    }
+    localStorage.setItem("characters-sort-mode", mode);
   };
 
   const sortedCharacters = useMemo(() => {
