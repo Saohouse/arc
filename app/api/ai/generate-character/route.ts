@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     const currentStory = await requireStory();
 
     const body = await request.json();
-    const { concept, ensembleGoal, analyzeCast } = body;
+    const { concept, ensembleGoal, analyzeCast, autoCreate } = body;
 
     if (!concept || typeof concept !== "string") {
       return NextResponse.json(
@@ -147,9 +147,38 @@ Generate a fully developed character following the Frank Daniel Method. Provide 
 
     const generatedCharacter = JSON.parse(result);
 
+    // If autoCreate is enabled, create the character in the database
+    let characterId = null;
+    if (autoCreate) {
+      // Get the highest order value
+      const maxOrder = await prisma.character.findFirst({
+        where: { storyId: currentStory.id },
+        orderBy: { order: "desc" },
+        select: { order: true },
+      });
+
+      const newOrder = (maxOrder?.order ?? -1) + 1;
+
+      // Create the character
+      const createdCharacter = await prisma.character.create({
+        data: {
+          name: generatedCharacter.name,
+          storyId: currentStory.id,
+          wizardData: generatedCharacter.wizardData,
+          psychologyTraits: Array.isArray(generatedCharacter.psychologyTraits)
+            ? generatedCharacter.psychologyTraits.join(",")
+            : String(generatedCharacter.psychologyTraits || ""),
+          order: newOrder,
+        },
+      });
+
+      characterId = createdCharacter.id;
+    }
+
     return NextResponse.json({
       character: generatedCharacter,
       castAnalysis,
+      characterId,
     });
   } catch (error: any) {
     console.error("AI generation error:", error);

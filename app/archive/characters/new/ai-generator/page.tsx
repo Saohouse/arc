@@ -40,6 +40,7 @@ export default function AIGeneratorPage() {
   const [concept, setConcept] = useState("");
   const [ensembleGoal, setEnsembleGoal] = useState<EnsembleGoal>("balance");
   const [analyzeCast, setAnalyzeCast] = useState(true);
+  const [autoCreate, setAutoCreate] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState("");
 
@@ -60,6 +61,7 @@ export default function AIGeneratorPage() {
           concept: concept.trim(),
           ensembleGoal: ENSEMBLE_GOALS[ensembleGoal].label,
           analyzeCast,
+          autoCreate,
         }),
       });
 
@@ -68,9 +70,15 @@ export default function AIGeneratorPage() {
         throw new Error(data.error || "Failed to generate character");
       }
 
-      const { character, castAnalysis } = await response.json();
+      const { character, castAnalysis, characterId } = await response.json();
 
-      // Store generated data in localStorage for the wizard to pick up
+      // If auto-create is enabled, redirect to the created character
+      if (autoCreate && characterId) {
+        router.push(`/archive/characters/${characterId}`);
+        return;
+      }
+
+      // Otherwise, store generated data for wizard review
       localStorage.setItem(
         "ai-generated-character",
         JSON.stringify({
@@ -152,6 +160,24 @@ export default function AIGeneratorPage() {
             </label>
           </div>
 
+          {/* Auto-Create Toggle */}
+          <div className="rounded-lg border p-6 bg-card">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoCreate}
+                onChange={(e) => setAutoCreate(e.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-gray-300"
+              />
+              <div className="flex-1">
+                <div className="text-sm font-semibold">Create Immediately</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Skip the wizard review and create the character directly. You can still edit everything afterward.
+                </p>
+              </div>
+            </label>
+          </div>
+
           {/* Ensemble Goal */}
           {analyzeCast && (
             <div className="rounded-lg border p-6 bg-card">
@@ -218,10 +244,10 @@ export default function AIGeneratorPage() {
           {/* Info */}
           <div className="rounded-lg border bg-muted/50 p-4">
             <p className="text-xs text-muted-foreground">
-              💡 <strong>What happens next:</strong> AI will generate a fully developed character
-              with answers to all Frank Daniel questions and suggested psychology traits. You'll
-              then be able to review, edit, and refine everything in the character wizard before
-              creating the character.
+              💡 <strong>What happens next:</strong> {autoCreate 
+                ? "AI will generate and create your character immediately. You'll be taken to the character page where you can edit anything."
+                : "AI will generate a fully developed character with answers to all Frank Daniel questions and suggested psychology traits. You'll then be able to review, edit, and refine everything in the character wizard before creating the character."
+              }
             </p>
           </div>
         </div>
