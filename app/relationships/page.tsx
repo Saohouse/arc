@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireStory } from "@/lib/story";
 import { RelationshipGraph } from "@/components/arc/RelationshipGraph";
 import { RoleGate } from "@/components/arc/RoleGate";
-import { calculateCompatibility, getCompatibilityIcon, getCompatibilityLabel, getCompatibilityColor } from "@/lib/compatibility";
+import { calculateCompatibility, getCompatibilityIcon, getCompatibilityLabel, getCompatibilityColor, type CompatibilityScore } from "@/lib/compatibility";
 
 export default async function RelationshipsPage() {
   const currentStory = await requireStory();
@@ -111,7 +111,7 @@ export default async function RelationshipsPage() {
           <div className="space-y-3">
             {relationships.map((rel) => {
               // Calculate compatibility for character-to-character relationships
-              let compatibility = null;
+              let compatibility: CompatibilityScore | null = null;
               if (rel.sourceType === "character" && rel.targetType === "character") {
                 const sourceTraits = characterTraitsMap.get(rel.sourceId);
                 const targetTraits = characterTraitsMap.get(rel.targetId);
