@@ -72,8 +72,30 @@ export default async function NewCharacterPage() {
         </p>
       </div>
 
-      {/* Choice between Quick Create and Wizard */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      {/* Choice between Quick Create, Wizard, and AI Generator */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Link
+          href="/archive/characters/new/ai-generator"
+          className="group relative overflow-hidden rounded-lg border p-6 transition-all hover:border-emerald-500 hover:shadow-lg"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-cyan-50 dark:from-emerald-950/20 dark:to-cyan-950/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              <h3 className="font-semibold">AI Generator</h3>
+              <span className="text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full">New</span>
+            </div>
+            <p className="text-sm text-muted-foreground mb-3">
+              Describe your concept and let AI create a fully developed character for you.
+            </p>
+            <div className="text-xs text-muted-foreground">
+              ✓ Instant character creation<br />
+              ✓ Analyzes your existing cast<br />
+              ✓ Editable in wizard afterward
+            </div>
+          </div>
+        </Link>
+
         <Link
           href="/archive/characters/new/wizard"
           className="group relative overflow-hidden rounded-lg border p-6 transition-all hover:border-purple-500 hover:shadow-lg"

@@ -4,7 +4,7 @@ import { requireStory } from "@/lib/story";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Sparkles } from "lucide-react";
 import { CharacterWizardForm } from "@/components/arc/CharacterWizardForm";
 
 async function createCharacterFromWizard(formData: FormData) {
@@ -48,9 +48,15 @@ async function createCharacterFromWizard(formData: FormData) {
   redirect("/archive/characters");
 }
 
-export default async function CharacterWizardPage() {
+type WizardPageProps = {
+  searchParams: Promise<{ ai?: string }>;
+};
+
+export default async function CharacterWizardPage({ searchParams }: WizardPageProps) {
   await requireRole("editor");
   const currentStory = await requireStory();
+  const params = await searchParams;
+  const isFromAI = params.ai === "true";
 
   return (
     <div className="min-h-screen py-8 px-4">
@@ -62,9 +68,26 @@ export default async function CharacterWizardPage() {
           <ArrowLeft className="w-4 h-4" />
           Back to character creation
         </Link>
+        
+        {isFromAI && (
+          <div className="mt-4 rounded-lg border bg-gradient-to-r from-emerald-50 to-cyan-50 dark:from-emerald-950/20 dark:to-cyan-950/20 p-4">
+            <div className="flex items-start gap-3">
+              <Sparkles className="w-5 h-5 text-emerald-600 dark:text-emerald-400 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 text-sm">
+                <div className="font-semibold text-emerald-900 dark:text-emerald-200 mb-1">
+                  AI-Generated Character Ready
+                </div>
+                <p className="text-emerald-800 dark:text-emerald-300 text-xs">
+                  Your character has been pre-filled by AI. Review each section and make any edits you'd like.
+                  You can regenerate individual sections or the entire character at any time.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      <CharacterWizardForm action={createCharacterFromWizard} />
+      <CharacterWizardForm action={createCharacterFromWizard} isFromAI={isFromAI} />
     </div>
   );
 }

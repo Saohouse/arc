@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { CharacterWizard } from "./CharacterWizard";
 
 interface CharacterWizardFormProps {
@@ -8,21 +8,52 @@ interface CharacterWizardFormProps {
   characterId?: string; // If provided, we're editing an existing character
   characterName?: string; // If provided, we're editing an existing character
   initialData?: Record<string, string>; // Pre-populate with existing wizard data
+  isFromAI?: boolean; // If true, load from localStorage
 }
 
-export function CharacterWizardForm({ action, characterId, characterName, initialData }: CharacterWizardFormProps) {
+export function CharacterWizardForm({ 
+  action, 
+  characterId, 
+  characterName, 
+  initialData,
+  isFromAI 
+}: CharacterWizardFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const isEditMode = !!characterName;
+  const [aiData, setAiData] = useState<any>(null);
+  const [loadedInitialData, setLoadedInitialData] = useState(initialData || {});
+
+  // Load AI-generated data from localStorage if coming from AI generator
+  useEffect(() => {
+    if (isFromAI && typeof window !== "undefined") {
+      const storedData = localStorage.getItem("ai-generated-character");
+      if (storedData) {
+        try {
+          const parsed = JSON.parse(storedData);
+          setAiData(parsed);
+          setLoadedInitialData(parsed.wizardData || {});
+          // Clear from localStorage after loading
+          localStorage.removeItem("ai-generated-character");
+        } catch (e) {
+          console.error("Failed to load AI data:", e);
+        }
+      }
+    }
+  }, [isFromAI]);
 
   const handleSave = async (data: Record<string, string>) => {
     // If editing existing character, skip the name prompt
     let name: string | undefined | null = characterName;
     
-    // Only prompt for name if creating new character
+    // Only prompt for name if creating new character and not from AI
     if (!isEditMode) {
-      name = prompt("Enter character name:");
-      if (!name?.trim()) return;
+      if (aiData?.name) {
+        name = aiData.name;
+      } else {
+        name = prompt("Enter character name:");
+        if (!name?.trim()) return;
+      }
     }
 
     setIsSubmitting(true);
@@ -58,8 +89,8 @@ export function CharacterWizardForm({ action, characterId, characterName, initia
     <form ref={formRef}>
       <CharacterWizard 
         onSave={handleSave} 
-        characterName={characterName}
-        initialData={initialData}
+        characterName={aiData?.name || characterName}
+        initialData={loadedInitialData}
       />
       {isSubmitting && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
