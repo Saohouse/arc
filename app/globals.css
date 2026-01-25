@@ -366,4 +366,61 @@
     ring-color: rgba(var(--accent-rgb, 136, 106, 229), 0.2);
     border-color: var(--accent);
   }
+
+  /* ===== MOBILE RESPONSIVE UTILITIES ===== */
+  @media (max-width: 1024px) {
+    /* Adjust heading sizes for mobile */
+    h1 {
+      font-size: 1.875rem; /* 30px instead of default 48px */
+      line-height: 2.25rem;
+    }
+
+    h2 {
+      font-size: 1.5rem; /* 24px */
+      line-height: 2rem;
+    }
+
+    /* Reduce card padding on mobile */
+    .card-enhanced,
+    .card-glass {
+      padding: 1rem;
+    }
+
+    /* Smaller touch targets adjusted */
+    button,
+    a {
+      min-height: 44px; /* iOS minimum touch target */
+      min-width: 44px;
+    }
+
+    /* Better form spacing on mobile */
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    textarea,
+    select {
+      font-size: 16px; /* Prevents zoom on iOS */
+    }
+  }
+
+  @media (max-width: 640px) {
+    /* Even smaller headings for very small screens */
+    h1 {
+      font-size: 1.5rem; /* 24px */
+      line-height: 2rem;
+    }
+
+    h2 {
+      font-size: 1.25rem; /* 20px */
+      line-height: 1.75rem;
+    }
+  }
+
+  /* Safe area insets for notched devices (iPhone X+) */
+  @supports (padding: max(0px)) {
+    body {
+      padding-left: max(0px, env(safe-area-inset-left));
+      padding-right: max(0px, env(safe-area-inset-right));
+    }
+  }
 }

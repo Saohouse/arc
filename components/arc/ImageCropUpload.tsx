@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef } from "react";
 import Cropper from "react-easy-crop";
 import { Area, getCroppedImg, readFile } from "@/lib/image-crop";
+import { Loader2 } from "lucide-react";
 
 type ImageCropUploadProps = {
   name: string;
@@ -32,6 +33,8 @@ export function ImageCropUpload({
   const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [croppedDataUrl, setCroppedDataUrl] = useState<string | null>(null);
   const [isEditingExisting, setIsEditingExisting] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [removeImage, setRemoveImage] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -44,8 +47,12 @@ export function ImageCropUpload({
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
+    setIsProcessing(true);
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      setIsProcessing(false);
+      return;
+    }
 
     // Check file size
     const fileSizeMB = file.size / (1024 * 1024);
@@ -53,6 +60,7 @@ export function ImageCropUpload({
       setError(
         `Image is too large (${fileSizeMB.toFixed(1)}MB). Maximum size is ${maxSizeMB}MB.`
       );
+      setIsProcessing(false);
       return;
     }
 
@@ -66,12 +74,15 @@ export function ImageCropUpload({
     } catch (err) {
       setError("Failed to read image file");
       console.error(err);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const handleCropSave = async () => {
     if (!imageSrc || !croppedAreaPixels || !originalFile) return;
 
+    setIsProcessing(true);
     try {
       const croppedImage = await getCroppedImg(
         imageSrc,
@@ -90,6 +101,8 @@ export function ImageCropUpload({
     } catch (err) {
       setError("Failed to crop image");
       console.error(err);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -103,6 +116,7 @@ export function ImageCropUpload({
   const handleEditExisting = async () => {
     if (!currentImageUrl) return;
     
+    setIsProcessing(true);
     try {
       // Fetch the existing image and convert to blob
       const response = await fetch(currentImageUrl);
@@ -117,6 +131,8 @@ export function ImageCropUpload({
     } catch (err) {
       setError("Failed to load existing image for editing");
       console.error(err);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -130,9 +146,23 @@ export function ImageCropUpload({
   const handleRemoveCrop = () => {
     setCroppedDataUrl(null);
     setFileName(null);
+    setRemoveImage(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+  };
+
+  const handleRemoveExistingImage = () => {
+    setRemoveImage(true);
+    setCroppedDataUrl(null);
+    setFileName(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleCancelRemove = () => {
+    setRemoveImage(false);
   };
 
   return (
@@ -175,16 +205,25 @@ export function ImageCropUpload({
                 <button
                   type="button"
                   onClick={handleCropCancel}
-                  className="rounded border px-5 py-2.5 text-[13px] font-medium hover:bg-muted transition-colors"
+                  disabled={isProcessing}
+                  className="rounded border px-5 py-2.5 text-[13px] font-medium hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Skip Crop / Upload Original
                 </button>
                 <button
                   type="button"
                   onClick={handleCropSave}
-                  className="rounded bg-foreground px-5 py-2.5 text-[13px] font-medium text-background hover:bg-foreground/90 transition-colors"
+                  disabled={isProcessing}
+                  className="rounded bg-foreground px-5 py-2.5 text-[13px] font-medium text-background hover:bg-foreground/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  Apply Crop
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    "Apply Crop"
+                  )}
                 </button>
               </div>
             </div>
@@ -194,15 +233,24 @@ export function ImageCropUpload({
 
       {/* Show file input only if no cropped image exists */}
       {!croppedDataUrl && (
-        <input
-          ref={fileInputRef}
-          name={name}
-          type="file"
-          accept={accept}
-          required={required && !croppedDataUrl && !currentImageUrl}
-          onChange={handleFileSelect}
-          className="w-full rounded-md border bg-background px-3 py-2 text-sm file:mr-4 file:rounded file:border-0 file:bg-muted file:px-3 file:py-1 file:text-sm file:font-medium hover:file:bg-muted/80"
-        />
+        <>
+          <input
+            ref={fileInputRef}
+            name={name}
+            type="file"
+            accept={accept}
+            required={required && !croppedDataUrl && !currentImageUrl}
+            onChange={handleFileSelect}
+            disabled={isProcessing}
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm file:mr-4 file:rounded file:border-0 file:bg-muted file:px-3 file:py-1 file:text-sm file:font-medium hover:file:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed"
+          />
+          {isProcessing && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Loading image...</span>
+            </div>
+          )}
+        </>
       )}
 
       {/* Hidden input to store cropped image data URL - only when cropped */}
@@ -220,6 +268,15 @@ export function ImageCropUpload({
             value=""
           />
         </>
+      )}
+
+      {/* Hidden input to signal image removal */}
+      {removeImage && (
+        <input
+          type="hidden"
+          name={`${name}_remove`}
+          value="true"
+        />
       )}
 
       {/* Success State */}
@@ -258,7 +315,7 @@ export function ImageCropUpload({
       )}
 
       {/* Current Image */}
-      {currentImageUrl && !croppedDataUrl && (
+      {currentImageUrl && !croppedDataUrl && !removeImage && (
         <div className="space-y-2">
           <div className="relative inline-block">
             <img
@@ -274,9 +331,44 @@ export function ImageCropUpload({
             <button
               type="button"
               onClick={handleEditExisting}
-              className="text-xs font-medium text-foreground hover:underline"
+              disabled={isProcessing}
+              className="text-xs font-medium text-foreground hover:underline disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
             >
-              Edit / Recrop
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                "Edit / Recrop"
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={handleRemoveExistingImage}
+              className="text-xs font-medium text-red-600 hover:underline dark:text-red-400"
+            >
+              Remove Image
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Image Removed State */}
+      {removeImage && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between rounded-md border border-orange-200 bg-orange-50 p-3 dark:border-orange-900 dark:bg-orange-950/30">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-orange-900 dark:text-orange-400">
+                ⚠️ Image will be removed when you save
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleCancelRemove}
+              className="text-xs font-medium text-orange-900 hover:underline dark:text-orange-400"
+            >
+              Undo
             </button>
           </div>
         </div>

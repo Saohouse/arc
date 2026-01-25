@@ -26,10 +26,15 @@ async function updateObject(formData: FormData) {
 
   const imageFile = formData.get("image");
   const imageData = formData.get("image_data"); // Cropped image data URL
+  const imageRemove = formData.get("image_remove"); // Remove image flag
   let imageUrl = String(formData.get("existingImageUrl") ?? "");
 
+  // Handle image removal
+  if (imageRemove === "true") {
+    imageUrl = "";
+  }
   // Handle cropped image (data URL) or regular file upload
-  if (imageData && typeof imageData === 'string' && imageData.startsWith('data:')) {
+  else if (imageData && typeof imageData === 'string' && imageData.startsWith('data:')) {
     const uploadedPath = await saveImageUpload(imageData, "object");
     if (uploadedPath) {
       imageUrl = uploadedPath;
