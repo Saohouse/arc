@@ -17,7 +17,7 @@ export function CharacterWizardForm({ action, characterId, characterName, initia
 
   const handleSave = async (data: Record<string, string>) => {
     // If editing existing character, skip the name prompt
-    let name = characterName;
+    let name: string | undefined | null = characterName;
     
     // Only prompt for name if creating new character
     if (!isEditMode) {
