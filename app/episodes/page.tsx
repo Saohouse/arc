@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { requireStory } from "@/lib/story";
 import { RoleGate } from "@/components/arc/RoleGate";
@@ -121,10 +122,13 @@ export default async function EpisodesPage() {
                   </div>
                 </div>
                 {episode.thumbnailUrl && (
-                  <img
+                  <Image
                     src={episode.thumbnailUrl}
                     alt={episode.title}
+                    width={80}
+                    height={80}
                     className="h-20 w-20 rounded object-cover"
+                    loading="lazy"
                   />
                 )}
               </div>

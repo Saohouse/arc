@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { DeleteButton } from "@/components/arc/DeleteButton";
@@ -38,14 +39,16 @@ export default async function LocationPage({ params }: LocationPageProps) {
 
   const tags = parseTagsString(location.tags);
 
-  // Fetch custom tag colors and IDs
-  const customTags = await prisma.tag.findMany({
-    where: {
-      storyId: location.storyId,
-      name: { in: tags },
-    },
-    select: { id: true, name: true, color: true },
-  });
+  // Fetch custom tag colors (skip if no tags)
+  const customTags = tags.length > 0
+    ? await prisma.tag.findMany({
+        where: {
+          storyId: location.storyId,
+          name: { in: tags },
+        },
+        select: { id: true, name: true, color: true },
+      })
+    : [];
 
   const tagDataMap = new Map<string, { id: string; color: string | null }>(
     customTags.map((t) => [t.name, { id: t.id, color: t.color }])
@@ -89,11 +92,14 @@ export default async function LocationPage({ params }: LocationPageProps) {
       <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
         <div className="space-y-3">
           {location.imageUrl ? (
-            <div className="overflow-hidden rounded-lg border">
-              <img
+            <div className="overflow-hidden rounded-lg border relative h-60 w-full">
+              <Image
                 src={location.imageUrl}
                 alt={location.name}
-                className="h-60 w-full object-cover"
+                fill
+                className="object-cover"
+                sizes="240px"
+                priority
               />
             </div>
           ) : (

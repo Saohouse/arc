@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useMemo, useEffect } from "react";
 import { Tag } from "@/components/arc/Tag";
 import { parseTagsString } from "@/lib/tags";
@@ -77,10 +78,13 @@ function LocationsList({ storyId, locations, tagColorMap }: LocationsListProps) 
         {!isCompact && (
           <>
             {location.imageUrl ? (
-              <img
+              <Image
                 src={location.imageUrl}
                 alt={location.name}
+                width={80}
+                height={80}
                 className="h-20 w-20 rounded-lg object-cover flex-shrink-0"
+                loading="lazy"
               />
             ) : (
               <div className="h-20 w-20 rounded-lg border border-dashed flex items-center justify-center text-2xl flex-shrink-0">

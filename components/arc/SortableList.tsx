@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   DndContext,
   closestCenter,
@@ -84,6 +84,12 @@ export function SortableList<T extends SortableItem>({
 }: SortableListProps<T>) {
   const [localItems, setLocalItems] = useState(items);
   const [isSaving, setIsSaving] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Only enable drag-and-drop after client-side hydration
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -123,6 +129,22 @@ export function SortableList<T extends SortableItem>({
       setIsSaving(false);
     }
   };
+
+  // Show simple list during SSR/initial hydration
+  if (!mounted) {
+    return (
+      <div className="space-y-2">
+        {localItems.map((item) => (
+          <div key={item.id} className="flex items-center gap-3">
+            <div className="text-muted-foreground/40">
+              <GripVertical className="h-5 w-5" />
+            </div>
+            <div className="flex-1">{renderItem(item)}</div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="relative">

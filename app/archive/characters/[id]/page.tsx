@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { DeleteButton } from "@/components/arc/DeleteButton";
@@ -23,6 +24,8 @@ type CharacterPageProps = {
 
 export default async function CharacterPage({ params }: CharacterPageProps) {
   const { id } = await params;
+  
+  // Fetch character and parse tags first to get tag names
   const character = await prisma.character.findUnique({
     where: { id },
     include: { homeLocation: true },
@@ -37,14 +40,16 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
     .map((tag) => tag.trim())
     .filter(Boolean);
 
-  // Fetch custom tag colors and IDs
-  const customTags = await prisma.tag.findMany({
-    where: {
-      storyId: character.storyId,
-      name: { in: tags },
-    },
-    select: { id: true, name: true, color: true },
-  });
+  // Fetch custom tag colors in parallel (if there are tags)
+  const customTags = tags.length > 0 
+    ? await prisma.tag.findMany({
+        where: {
+          storyId: character.storyId,
+          name: { in: tags },
+        },
+        select: { id: true, name: true, color: true },
+      })
+    : [];
 
   const tagDataMap = new Map<string, { id: string; color: string | null }>(
     customTags.map((t) => [t.name, { id: t.id, color: t.color }])
@@ -88,11 +93,14 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
       <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
         <div className="space-y-3">
           {character.imageUrl ? (
-            <div className="overflow-hidden rounded-lg border">
-              <img
+            <div className="overflow-hidden rounded-lg border relative h-60 w-full">
+              <Image
                 src={character.imageUrl}
                 alt={character.name}
-                className="h-60 w-full object-cover"
+                fill
+                className="object-cover"
+                sizes="240px"
+                priority
               />
             </div>
           ) : (

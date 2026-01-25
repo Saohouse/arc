@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireStory } from "@/lib/story";
@@ -125,10 +126,13 @@ export default async function TagViewPage({ params }: TagViewPageProps) {
                 >
                   <div className="flex items-center gap-4">
                     {character.imageUrl && (
-                      <img
+                      <Image
                         src={character.imageUrl}
                         alt={character.name}
+                        width={48}
+                        height={48}
                         className="h-12 w-12 rounded-lg object-cover"
+                        loading="lazy"
                       />
                     )}
                     <div>

@@ -105,6 +105,8 @@ model Character {
 
   @@index([storyId])
   @@index([storyId, order])
+  @@index([storyId, name]) // For alphabetical sorting
+  @@index([storyId, createdAt]) // For date sorting
 }
 
 model Relationship {
@@ -146,6 +148,8 @@ model World {
 
   @@index([storyId])
   @@index([storyId, order])
+  @@index([storyId, name]) // For alphabetical sorting
+  @@index([storyId, createdAt]) // For date sorting
 }
 
 model Location {
@@ -167,6 +171,8 @@ model Location {
 
   @@index([storyId])
   @@index([storyId, order])
+  @@index([storyId, name]) // For alphabetical sorting
+  @@index([storyId, createdAt]) // For date sorting
 }
 
 model Object {
@@ -185,6 +191,8 @@ model Object {
 
   @@index([storyId])
   @@index([storyId, order])
+  @@index([storyId, name]) // For alphabetical sorting
+  @@index([storyId, createdAt]) // For date sorting
 }
 
 model Episode {

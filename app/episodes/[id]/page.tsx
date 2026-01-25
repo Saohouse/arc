@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { DeleteButton } from "@/components/arc/DeleteButton";
@@ -143,10 +144,13 @@ export default async function EpisodePage({ params }: EpisodePageProps) {
                   >
                     <div className="flex items-start gap-3">
                       {scene.imageUrl && (
-                        <img
+                        <Image
                           src={scene.imageUrl}
                           alt={scene.title}
+                          width={64}
+                          height={64}
                           className="h-16 w-16 rounded object-cover"
+                          loading="lazy"
                         />
                       )}
                       <div className="flex-1">
@@ -178,11 +182,14 @@ export default async function EpisodePage({ params }: EpisodePageProps) {
         {/* Sidebar */}
         <div className="space-y-4">
           {episode.thumbnailUrl && (
-            <div className="overflow-hidden rounded border">
-              <img
+            <div className="overflow-hidden rounded border relative w-full aspect-video">
+              <Image
                 src={episode.thumbnailUrl}
                 alt={episode.title}
-                className="w-full"
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 300px"
+                priority
               />
             </div>
           )}
