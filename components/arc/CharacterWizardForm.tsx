@@ -24,6 +24,7 @@ export function CharacterWizardForm({
   const isEditMode = !!characterName;
   const [aiData, setAiData] = useState<any>(null);
   const [loadedInitialData, setLoadedInitialData] = useState(initialData || {});
+  const [currentName, setCurrentName] = useState(characterName || "");
 
   // Load AI-generated data from localStorage if coming from AI generator
   useEffect(() => {
@@ -34,6 +35,7 @@ export function CharacterWizardForm({
           const parsed = JSON.parse(storedData);
           setAiData(parsed);
           setLoadedInitialData(parsed.wizardData || {});
+          setCurrentName(parsed.name || "");
           // Clear from localStorage after loading
           localStorage.removeItem("ai-generated-character");
         } catch (e) {
@@ -44,14 +46,18 @@ export function CharacterWizardForm({
     }
   }, [isFromAI]);
 
-  const handleSave = async (data: Record<string, string>) => {
+  const handleSave = async (data: Record<string, string>, updatedName?: string) => {
     // If editing existing character, skip the name prompt
     let name: string | undefined | null = characterName;
     
+    // Use updated name from wizard if provided
+    if (updatedName) {
+      name = updatedName;
+    }
     // Only prompt for name if creating new character and not from AI
-    if (!isEditMode) {
-      if (aiData?.name) {
-        name = aiData.name;
+    else if (!isEditMode) {
+      if (aiData?.name || currentName) {
+        name = currentName || aiData.name;
       } else {
         name = prompt("Enter character name:");
         if (!name?.trim()) return;
@@ -111,7 +117,7 @@ export function CharacterWizardForm({
     <form ref={formRef}>
       <CharacterWizard 
         onSave={handleSave} 
-        characterName={aiData?.name || characterName}
+        characterName={currentName || aiData?.name || characterName}
         initialData={loadedInitialData}
         key={isFromAI ? 'ai-wizard' : 'manual-wizard'} // Force remount with AI data
       />

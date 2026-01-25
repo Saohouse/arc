@@ -38,6 +38,7 @@ const ENSEMBLE_GOALS: Record<EnsembleGoal, { label: string; description: string 
 export default function AIGeneratorPage() {
   const router = useRouter();
   const [concept, setConcept] = useState("");
+  const [characterName, setCharacterName] = useState("");
   const [ensembleGoal, setEnsembleGoal] = useState<EnsembleGoal>("balance");
   const [analyzeCast, setAnalyzeCast] = useState(true);
   const [autoCreate, setAutoCreate] = useState(false);
@@ -59,6 +60,7 @@ export default function AIGeneratorPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           concept: concept.trim(),
+          characterName: characterName.trim() || undefined, // Only send if provided
           ensembleGoal: ENSEMBLE_GOALS[ensembleGoal].label,
           analyzeCast,
           autoCreate,
@@ -124,6 +126,23 @@ export default function AIGeneratorPage() {
         </div>
 
         <div className="space-y-6">
+          {/* Character Name (Optional) */}
+          <div className="rounded-lg border p-6 bg-card">
+            <label className="block text-sm font-semibold mb-3">
+              Character Name (Optional)
+            </label>
+            <input
+              type="text"
+              value={characterName}
+              onChange={(e) => setCharacterName(e.target.value)}
+              placeholder="e.g., Marcus Steel, Dr. Chen, The Wanderer..."
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            />
+            <p className="text-xs text-muted-foreground mt-2">
+              Leave empty to let AI generate a fitting name based on the character concept.
+            </p>
+          </div>
+
           {/* Character Concept */}
           <div className="rounded-lg border p-6 bg-card">
             <label className="block text-sm font-semibold mb-3">

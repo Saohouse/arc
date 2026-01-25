@@ -6,19 +6,51 @@ import { ChevronLeft, ChevronRight, Save, Sparkles } from "lucide-react";
 
 interface CharacterWizardProps {
   initialData?: Record<string, string>;
-  onSave: (data: Record<string, string>) => void;
+  onSave: (data: Record<string, string>, updatedName?: string) => void;
   characterName?: string;
 }
 
 export function CharacterWizard({ initialData = {}, onSave, characterName }: CharacterWizardProps) {
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>(initialData);
+  const [editableName, setEditableName] = useState(characterName || "");
+  const [previousName, setPreviousName] = useState(characterName || "");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const hasLoadedDraft = useRef(false);
 
   const currentSection = FRANK_DANIEL_SECTIONS[currentSectionIndex];
   const isFirstSection = currentSectionIndex === 0;
   const isLastSection = currentSectionIndex === FRANK_DANIEL_SECTIONS.length - 1;
+
+  // Function to replace all occurrences of old name with new name in all answers
+  const replaceNameInAnswers = (oldName: string, newName: string) => {
+    if (!oldName || !newName || oldName === newName) return;
+    
+    const updatedAnswers: Record<string, string> = {};
+    Object.keys(answers).forEach((key) => {
+      const value = answers[key];
+      if (typeof value === "string") {
+        // Replace all occurrences (case-insensitive)
+        const regex = new RegExp(oldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+        updatedAnswers[key] = value.replace(regex, newName);
+      } else {
+        updatedAnswers[key] = value;
+      }
+    });
+    setAnswers(updatedAnswers);
+    setHasUnsavedChanges(true);
+  };
+
+  // Handle name change
+  const handleNameChange = (newName: string) => {
+    setEditableName(newName);
+    if (previousName && newName && previousName !== newName) {
+      replaceNameInAnswers(previousName, newName);
+      setPreviousName(newName);
+    } else if (!previousName && newName) {
+      setPreviousName(newName);
+    }
+  };
 
   // Auto-save to localStorage
   useEffect(() => {
@@ -74,7 +106,7 @@ export function CharacterWizard({ initialData = {}, onSave, characterName }: Cha
 
   const handleComplete = () => {
     // Actually create the character
-    onSave(answers);
+    onSave(answers, editableName);
     localStorage.removeItem(`wizard-draft-${characterName || "new"}`);
   };
 
@@ -86,7 +118,7 @@ export function CharacterWizard({ initialData = {}, onSave, characterName }: Cha
       <div className="rounded-lg border bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 p-6">
         <div className="flex items-start gap-3">
           <Sparkles className="w-6 h-6 text-purple-600 dark:text-purple-400 mt-1 flex-shrink-0" />
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl font-bold mb-2">The Frank Daniel Method</h1>
             <p className="text-sm text-muted-foreground leading-relaxed">
               Frank Daniel (1926-1996) was a legendary Czech-American film director and teacher who revolutionized 
@@ -100,6 +132,25 @@ export function CharacterWizard({ initialData = {}, onSave, characterName }: Cha
           </div>
         </div>
       </div>
+
+      {/* Character Name Field */}
+      {editableName && (
+        <div className="rounded-lg border p-6 bg-card">
+          <label className="block text-sm font-semibold mb-3">
+            Character Name
+          </label>
+          <input
+            type="text"
+            value={editableName}
+            onChange={(e) => handleNameChange(e.target.value)}
+            placeholder="Enter character name..."
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          />
+          <p className="text-xs text-muted-foreground mt-2">
+            💡 Changing the name will automatically update it throughout all answers.
+          </p>
+        </div>
+      )}
 
       {/* Progress bar */}
       <div className="space-y-2">

@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     const currentStory = await requireStory();
 
     const body = await request.json();
-    const { concept, ensembleGoal, analyzeCast, autoCreate } = body;
+    const { concept, characterName, ensembleGoal, analyzeCast, autoCreate } = body;
 
     if (!concept || typeof concept !== "string") {
       return NextResponse.json(
@@ -108,6 +108,7 @@ ${FRANK_DANIEL_SECTIONS.map((s) => `- ${s.id}: ${s.questions.map((q) => q.id).jo
 
     const userPrompt = `Character Concept: ${concept}
 
+${characterName ? `Character Name: ${characterName}\n` : ""}
 ${ensembleGoal ? `Ensemble Goal: ${ensembleGoal}` : ""}
 
 ${
