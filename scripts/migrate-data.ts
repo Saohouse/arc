@@ -56,10 +56,17 @@ async function migrateData() {
     console.log('Migrating characters...');
     const characters = await sqlite.character.findMany();
     for (const char of characters) {
+      const { wizardData, ...charData } = char;
       await postgres.character.upsert({
         where: { id: char.id },
-        update: char,
-        create: char,
+        update: {
+          ...charData,
+          wizardData: wizardData === null ? null : wizardData,
+        },
+        create: {
+          ...charData,
+          wizardData: wizardData === null ? null : wizardData,
+        },
       });
     }
     console.log(`✅ Migrated ${characters.length} characters\n`);
