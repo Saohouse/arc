@@ -18,6 +18,7 @@ async function updateCharacterWizardData(formData: FormData) {
   }
 
   const wizardDataString = String(formData.get("wizardData") || "{}");
+  const psychologyTraits = String(formData.get("psychologyTraits") || "");
 
   let wizardData;
   try {
@@ -30,6 +31,7 @@ async function updateCharacterWizardData(formData: FormData) {
     where: { id: characterId },
     data: {
       wizardData,
+      ...(psychologyTraits && { psychologyTraits }),
     },
   });
 

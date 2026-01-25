@@ -14,6 +14,7 @@ async function createCharacterFromWizard(formData: FormData) {
 
   const name = String(formData.get("name") || "");
   const wizardDataString = String(formData.get("wizardData") || "{}");
+  const psychologyTraits = String(formData.get("psychologyTraits") || "");
 
   if (!name.trim()) {
     throw new Error("Character name is required");
@@ -40,6 +41,7 @@ async function createCharacterFromWizard(formData: FormData) {
       name,
       storyId: currentStory.id,
       wizardData,
+      psychologyTraits,
       order: newOrder,
     },
   });

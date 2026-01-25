@@ -67,6 +67,14 @@ export function CharacterWizardForm({
         formData.append("name", name!);
       }
       formData.append("wizardData", JSON.stringify(data));
+      
+      // Include psychology traits from AI if available
+      if (aiData?.psychologyTraits) {
+        const traitsString = Array.isArray(aiData.psychologyTraits) 
+          ? aiData.psychologyTraits.join(",")
+          : String(aiData.psychologyTraits);
+        formData.append("psychologyTraits", traitsString);
+      }
 
       // Submit to server action
       await action(formData);
