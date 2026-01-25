@@ -7,6 +7,7 @@ import { LocationSelector } from "@/components/arc/LocationSelector";
 import { requireRole } from "@/lib/auth";
 import { ImageUpload } from "@/components/arc/ImageUpload";
 import { TraitSelector } from "@/components/arc/TraitSelector";
+import { Sparkles, Zap } from "lucide-react";
 
 async function createCharacter(formData: FormData) {
   "use server";
@@ -69,6 +70,54 @@ export default async function NewCharacterPage() {
         <p className="text-sm text-muted-foreground">
           Create a structured canon profile.
         </p>
+      </div>
+
+      {/* Choice between Quick Create and Wizard */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Link
+          href="/archive/characters/new/wizard"
+          className="group relative overflow-hidden rounded-lg border p-6 transition-all hover:border-purple-500 hover:shadow-lg"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              <h3 className="font-semibold">Character Wizard</h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-3">
+              Use the Frank Daniel Method to develop any character type through systematic questioning.
+            </p>
+            <div className="text-xs text-muted-foreground">
+              ✓ Works for all character types<br />
+              ✓ 11 sections, 80+ questions<br />
+              ✓ Auto-save & resume later
+            </div>
+          </div>
+        </Link>
+
+        <div className="rounded-lg border p-6 bg-card">
+          <div className="flex items-center gap-2 mb-3">
+            <Zap className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <h3 className="font-semibold">Quick Create</h3>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            Fill in basic information and create your character immediately.
+          </p>
+          <div className="text-xs text-muted-foreground mb-4">
+            ✓ Fast and simple<br />
+            ✓ Essential fields only<br />
+            ✓ Add details later
+          </div>
+        </div>
+      </div>
+
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-background px-2 text-muted-foreground">Quick Create Form</span>
+        </div>
       </div>
 
       <form action={createCharacter} className="space-y-5">

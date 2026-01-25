@@ -9,6 +9,7 @@ import { RoleGate } from "@/components/arc/RoleGate";
 import { requireRole } from "@/lib/auth";
 import { getTraitById, TRAIT_CATEGORIES } from "@/lib/psychology-traits";
 import { CharacterCompatibilityList } from "@/components/arc/CharacterCompatibilityList";
+import { WizardDataDisplay } from "@/components/arc/WizardDataDisplay";
 
 async function deleteCharacter(formData: FormData) {
   "use server";
@@ -267,6 +268,11 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
                 allCharacters={storyCharacters}
               />
             </section>
+          )}
+
+          {/* Frank Daniel Character Development */}
+          {character.wizardData && (
+            <WizardDataDisplay wizardData={character.wizardData as Record<string, string>} />
           )}
         </div>
       </div>

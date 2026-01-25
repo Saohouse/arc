@@ -94,6 +94,7 @@ model Character {
   imageUrl  String?
   tags      String   @default("") // comma-separated for now
   psychologyTraits String @default("") // comma-separated psychology traits
+  wizardData Json?   // Frank Daniel character development questionnaire
   order     Int      @default(0) // For custom sorting
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
