@@ -6,6 +6,7 @@ import { requireStory } from "@/lib/story";
 import { LocationSelector } from "@/components/arc/LocationSelector";
 import { requireRole } from "@/lib/auth";
 import { ImageUpload } from "@/components/arc/ImageUpload";
+import { TraitSelector } from "@/components/arc/TraitSelector";
 
 async function updateCharacter(formData: FormData) {
   "use server";
@@ -25,6 +26,7 @@ async function updateCharacter(formData: FormData) {
     .map((tag) => tag.trim())
     .filter(Boolean)
     .join(",");
+  const psychologyTraits = String(formData.get("psychologyTraits") ?? "").trim();
   const homeLocationId = String(formData.get("homeLocationId") ?? "").trim();
 
   const imageFile = formData.get("image");
@@ -57,6 +59,7 @@ async function updateCharacter(formData: FormData) {
       imageUrl: imageUrl || null,
       bio: bio || null,
       tags,
+      psychologyTraits,
       homeLocationId: homeLocationId || null,
     },
   });
@@ -148,6 +151,12 @@ export default async function EditCharacterPage({
             placeholder="faction, timeline, motif"
           />
         </label>
+
+        <TraitSelector
+          name="psychologyTraits"
+          label="Psychology Traits"
+          selectedTraits={character.psychologyTraits ? character.psychologyTraits.split(",").filter(Boolean) : []}
+        />
 
         <label className="block text-sm font-medium">
           Bio

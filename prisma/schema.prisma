@@ -93,6 +93,7 @@ model Character {
   bio       String?
   imageUrl  String?
   tags      String   @default("") // comma-separated for now
+  psychologyTraits String @default("") // comma-separated psychology traits
   order     Int      @default(0) // For custom sorting
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

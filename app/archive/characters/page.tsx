@@ -16,6 +16,7 @@ export default async function CharactersPage() {
         title: true,
         imageUrl: true,
         tags: true,
+        psychologyTraits: true,
         order: true,
         createdAt: true,
         updatedAt: true,

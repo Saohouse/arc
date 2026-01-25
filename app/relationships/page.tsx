@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireStory } from "@/lib/story";
 import { RelationshipGraph } from "@/components/arc/RelationshipGraph";
 import { RoleGate } from "@/components/arc/RoleGate";
+import { calculateCompatibility, getCompatibilityIcon, getCompatibilityLabel, getCompatibilityColor } from "@/lib/compatibility";
 
 export default async function RelationshipsPage() {
   const currentStory = await requireStory();
@@ -15,7 +16,7 @@ export default async function RelationshipsPage() {
   const [characters, worlds, locations, objects] = await Promise.all([
     prisma.character.findMany({
       where: { storyId: currentStory.id },
-      select: { id: true, name: true },
+      select: { id: true, name: true, psychologyTraits: true },
     }),
     prisma.world.findMany({
       where: { storyId: currentStory.id },
@@ -33,7 +34,11 @@ export default async function RelationshipsPage() {
 
   // Create lookup maps
   const entityMap = new Map<string, string>();
-  characters.forEach((c) => entityMap.set(`character-${c.id}`, c.name));
+  const characterTraitsMap = new Map<string, string>();
+  characters.forEach((c) => {
+    entityMap.set(`character-${c.id}`, c.name);
+    characterTraitsMap.set(c.id, c.psychologyTraits || "");
+  });
   worlds.forEach((w) => entityMap.set(`world-${w.id}`, w.name));
   locations.forEach((l) => entityMap.set(`location-${l.id}`, l.name));
   objects.forEach((o) => entityMap.set(`object-${o.id}`, o.name));
@@ -104,34 +109,75 @@ export default async function RelationshipsPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {relationships.map((rel) => (
-              <Link
-                key={rel.id}
-                href={`/relationships/${rel.id}`}
-                className="block rounded border p-5 transition-all hover:border-foreground/40 hover:shadow-sm"
-              >
-                <div className="flex items-center gap-3 text-base">
-                  <span className="font-semibold">
-                    {getEntityEmoji(rel.sourceType)}{" "}
-                    {getEntityName(rel.sourceType, rel.sourceId)}
-                  </span>
-                  <span className="text-muted-foreground">→</span>
-                  <span className="rounded bg-muted px-2 py-1 text-xs font-medium text-foreground">
-                    {rel.type}
-                  </span>
-                  <span className="text-muted-foreground">→</span>
-                  <span className="font-semibold">
-                    {getEntityEmoji(rel.targetType)}{" "}
-                    {getEntityName(rel.targetType, rel.targetId)}
-                  </span>
-                </div>
-                {rel.notes ? (
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {rel.notes}
-                  </p>
-                ) : null}
-              </Link>
-            ))}
+            {relationships.map((rel) => {
+              // Calculate compatibility for character-to-character relationships
+              let compatibility = null;
+              if (rel.sourceType === "character" && rel.targetType === "character") {
+                const sourceTraits = characterTraitsMap.get(rel.sourceId);
+                const targetTraits = characterTraitsMap.get(rel.targetId);
+                
+                if (sourceTraits && targetTraits) {
+                  const sourceTraitsList = sourceTraits.split(",").filter(Boolean);
+                  const targetTraitsList = targetTraits.split(",").filter(Boolean);
+                  
+                  if (sourceTraitsList.length > 0 && targetTraitsList.length > 0) {
+                    compatibility = calculateCompatibility(sourceTraitsList, targetTraitsList);
+                  }
+                }
+              }
+
+              return (
+                <Link
+                  key={rel.id}
+                  href={`/relationships/${rel.id}`}
+                  className="block rounded border p-5 transition-all hover:border-foreground/40 hover:shadow-sm"
+                >
+                  <div className="flex items-center gap-3 text-base flex-wrap">
+                    <span className="font-semibold">
+                      {getEntityEmoji(rel.sourceType)}{" "}
+                      {getEntityName(rel.sourceType, rel.sourceId)}
+                    </span>
+                    <span className="text-muted-foreground">→</span>
+                    <span className="rounded bg-muted px-2 py-1 text-xs font-medium text-foreground">
+                      {rel.type}
+                    </span>
+                    <span className="text-muted-foreground">→</span>
+                    <span className="font-semibold">
+                      {getEntityEmoji(rel.targetType)}{" "}
+                      {getEntityName(rel.targetType, rel.targetId)}
+                    </span>
+                    {compatibility && (
+                      <span
+                        className={`ml-auto flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium ${getCompatibilityColor(compatibility.level)} bg-opacity-10`}
+                        title={`Psychology Compatibility: ${compatibility.score}/100`}
+                      >
+                        <span>{getCompatibilityIcon(compatibility.level)}</span>
+                        <span>{getCompatibilityLabel(compatibility.level)}</span>
+                      </span>
+                    )}
+                  </div>
+                  {rel.notes ? (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {rel.notes}
+                    </p>
+                  ) : null}
+                  {compatibility && (compatibility.warnings.length > 0 || compatibility.strengths.length > 0) && (
+                    <div className="mt-3 space-y-1.5">
+                      {compatibility.warnings.slice(0, 2).map((warning, i) => (
+                        <div key={i} className="text-xs text-muted-foreground">
+                          {warning}
+                        </div>
+                      ))}
+                      {compatibility.strengths.slice(0, 1).map((strength, i) => (
+                        <div key={i} className="text-xs text-muted-foreground">
+                          {strength}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Link>
+              );
+            })}
           </div>
         )}
       </section>

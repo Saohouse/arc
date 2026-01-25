@@ -15,6 +15,7 @@ type Character = {
   title: string | null;
   imageUrl: string | null;
   tags: string;
+  psychologyTraits: string;
   order: number;
   createdAt: Date;
   updatedAt: Date;
@@ -30,21 +31,31 @@ type CharactersListProps = {
 
 function CharactersList({ storyId, characters, tagColorMap }: CharactersListProps) {
   const [isCompact, setIsCompact] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "card">("list");
   const [sortMode, setSortMode] = useState<SortMode>("custom");
   const [mounted, setMounted] = useState(false);
 
-  // Load sort mode from localStorage after hydration
+  // Load preferences from localStorage after hydration
   useEffect(() => {
     setMounted(true);
-    const saved = localStorage.getItem("characters-sort-mode") as SortMode;
-    if (saved === "alphabetical" || saved === "date-created") {
-      setSortMode(saved);
+    const savedSort = localStorage.getItem("characters-sort-mode") as SortMode;
+    if (savedSort === "alphabetical" || savedSort === "date-created") {
+      setSortMode(savedSort);
+    }
+    const savedView = localStorage.getItem("characters-view-mode") as "list" | "card";
+    if (savedView === "card" || savedView === "list") {
+      setViewMode(savedView);
     }
   }, []);
 
   const handleSortModeChange = (mode: SortMode) => {
     setSortMode(mode);
     localStorage.setItem("characters-sort-mode", mode);
+  };
+
+  const handleViewModeChange = (mode: "list" | "card") => {
+    setViewMode(mode);
+    localStorage.setItem("characters-view-mode", mode);
   };
 
   const sortedCharacters = useMemo(() => {
@@ -67,63 +78,120 @@ function CharactersList({ storyId, characters, tagColorMap }: CharactersListProp
     );
   };
 
-  const renderCharacter = (character: Character) => (
-    <Link
-      href={`/archive/characters/${character.id}`}
-      className={`block rounded-lg border transition hover:border-foreground/30 hover:bg-muted/50 ${
-        isCompact ? "p-3" : "p-4"
-      }`}
-    >
-      <div className={`flex items-start gap-4 ${isCompact ? "items-center" : ""}`}>
-        {!isCompact && (
-          <>
-            {character.imageUrl ? (
-              <Image
-                src={character.imageUrl}
-                alt={character.name}
-                width={80}
-                height={80}
-                className="h-20 w-20 rounded-lg object-cover flex-shrink-0"
-                loading="lazy"
-              />
-            ) : (
-              <div className="h-20 w-20 rounded-lg border border-dashed flex items-center justify-center text-2xl flex-shrink-0">
-                👤
+  const renderCharacter = (character: Character) => {
+    return (
+      <Link
+        href={`/archive/characters/${character.id}`}
+        className={`block rounded-lg border transition hover:border-foreground/30 hover:bg-muted/50 ${
+          isCompact ? "p-3" : "p-4"
+        }`}
+      >
+        <div className={`flex items-start gap-4 ${isCompact ? "items-center" : ""}`}>
+          {!isCompact && (
+            <>
+              {character.imageUrl ? (
+                <Image
+                  src={character.imageUrl}
+                  alt={character.name}
+                  width={80}
+                  height={80}
+                  className="h-20 w-20 rounded-lg object-cover flex-shrink-0"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="h-20 w-20 rounded-lg border border-dashed flex items-center justify-center text-2xl flex-shrink-0">
+                  👤
+                </div>
+              )}
+            </>
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div>
+                  <div className={`font-semibold ${isCompact ? "text-sm" : "text-base"}`}>
+                    {character.name}
+                  </div>
+                  {character.title ? (
+                    <div className="text-sm text-muted-foreground">
+                      {character.title}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Updated {character.updatedAt.toLocaleDateString()}
+              </div>
+            </div>
+            {character.tags && !isCompact && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {parseTagsString(character.tags).map((tag) => (
+                  <Tag 
+                    key={`${character.id}-${tag}`} 
+                    name={tag}
+                    customColor={tagColorMap.get(tag)}
+                  />
+                ))}
               </div>
             )}
-          </>
-        )}
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <div className={`font-semibold ${isCompact ? "text-sm" : "text-base"}`}>
-                {character.name}
-              </div>
-              {character.title ? (
-                <div className="text-sm text-muted-foreground">
-                  {character.title}
-                </div>
-              ) : null}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              Updated {character.updatedAt.toLocaleDateString()}
-            </div>
           </div>
-          {character.tags && !isCompact && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {parseTagsString(character.tags).map((tag) => (
-                <Tag 
-                  key={`${character.id}-${tag}`} 
-                  name={tag}
-                  customColor={tagColorMap.get(tag)}
-                />
-              ))}
+        </div>
+      </Link>
+    );
+  };
+
+  const renderCharacterCard = (character: Character) => {
+    return (
+      <Link
+        href={`/archive/characters/${character.id}`}
+        className="block rounded-lg border transition hover:border-foreground/30 hover:bg-muted/50 p-4"
+      >
+        <div className="flex flex-col items-center text-center gap-3">
+          {character.imageUrl ? (
+            <Image
+              src={character.imageUrl}
+              alt={character.name}
+              width={120}
+              height={120}
+              className="h-30 w-30 rounded-lg object-cover"
+              loading="lazy"
+            />
+          ) : (
+            <div className="h-30 w-30 rounded-lg border border-dashed flex items-center justify-center text-4xl">
+              👤
             </div>
           )}
+          <div className="w-full">
+            <div className="font-semibold text-base truncate">
+              {character.name}
+            </div>
+            {character.title ? (
+              <div className="text-sm text-muted-foreground truncate">
+                {character.title}
+              </div>
+            ) : null}
+            {character.tags && (
+              <div className="mt-2 flex flex-wrap gap-1 justify-center">
+                {parseTagsString(character.tags).slice(0, 3).map((tag) => (
+                  <Tag 
+                    key={`${character.id}-${tag}`} 
+                    name={tag}
+                    customColor={tagColorMap.get(tag)}
+                    size="sm"
+                  />
+                ))}
+                {parseTagsString(character.tags).length > 3 && (
+                  <span className="text-xs text-muted-foreground">
+                    +{parseTagsString(character.tags).length - 3}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-    </Link>
-  );
+      </Link>
+    );
+  };
 
   return (
     <>
@@ -132,6 +200,33 @@ function CharactersList({ storyId, characters, tagColorMap }: CharactersListProp
           {characters.length} {characters.length === 1 ? "character" : "characters"}
         </div>
         <div className="flex items-center gap-2">
+          {/* View Mode Toggle */}
+          <div className="flex items-center gap-1 border rounded-md p-1">
+            <button
+              onClick={() => handleViewModeChange("list")}
+              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+                viewMode === "list" 
+                  ? "bg-foreground/10 text-foreground" 
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              title="List view"
+            >
+              List
+            </button>
+            <button
+              onClick={() => handleViewModeChange("card")}
+              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+                viewMode === "card" 
+                  ? "bg-foreground/10 text-foreground" 
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              title="Card view"
+            >
+              Cards
+            </button>
+          </div>
+
+          {/* Sort Mode Toggle */}
           <div className="flex items-center gap-1 border rounded-md p-1">
             <button
               onClick={() => handleSortModeChange("custom")}
@@ -167,16 +262,26 @@ function CharactersList({ storyId, characters, tagColorMap }: CharactersListProp
               Date
             </button>
           </div>
-          <button
-            onClick={() => setIsCompact(!isCompact)}
-            className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors"
-          >
-            {isCompact ? "Show Photos" : "Hide Photos"}
-          </button>
+
+          {/* Compact Toggle for List View */}
+          {viewMode === "list" && (
+            <button
+              onClick={() => setIsCompact(!isCompact)}
+              className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors"
+            >
+              {isCompact ? "Show Photos" : "Hide Photos"}
+            </button>
+          )}
         </div>
       </div>
 
-      {sortMode === "custom" ? (
+      {viewMode === "card" ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          {sortedCharacters.map((character) => (
+            <div key={character.id}>{renderCharacterCard(character)}</div>
+          ))}
+        </div>
+      ) : sortMode === "custom" ? (
         <SortableList
           items={sortedCharacters}
           onReorder={handleReorder}
