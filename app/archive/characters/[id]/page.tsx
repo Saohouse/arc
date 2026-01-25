@@ -274,6 +274,41 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
           {character.wizardData && (
             <WizardDataDisplay wizardData={character.wizardData as Record<string, string>} />
           )}
+          
+          {/* Prompt to add wizard data if not present */}
+          {!character.wizardData && (
+            <section className="rounded-lg border p-6 bg-gradient-to-br from-purple-50/50 to-pink-50/50 dark:from-purple-950/10 dark:to-pink-950/10">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                  <span className="text-2xl">✨</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold mb-2">Deepen Your Character Development</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Use the Frank Daniel Method to systematically explore {character.name}'s motivations, 
+                    conflicts, and arc. Answer questions about their desires, obstacles, relationships, 
+                    and transformation to create a fully-realized character.
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    <RoleGate allowedRoles={["editor", "admin"]}>
+                      <Link
+                        href={`/archive/characters/${character.id}/wizard`}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-purple-600 text-white hover:bg-purple-700 transition-colors text-sm font-medium"
+                      >
+                        Complete Character Wizard
+                      </Link>
+                    </RoleGate>
+                    <Link
+                      href="/archive/characters/new/wizard/test"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/20 transition-colors text-sm"
+                    >
+                      Learn About the Method
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
         </div>
       </div>
     </div>

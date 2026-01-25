@@ -37,57 +37,70 @@ export function calculateCompatibility(
   const strengths: string[] = [];
   const growthAreas: string[] = [];
 
-  // Check each trait in character 1 against character 2's traits
-  char1Traits.forEach((trait1) => {
-    const trait2Ids = char2Traits.map((t) => t.id);
+  // Check traits bidirectionally to ensure symmetric compatibility
+  // We need to check both: char1 traits against char2 traits AND char2 traits against char1 traits
+  const allTraitPairs = [
+    { fromTraits: char1Traits, toTraits: char2Traits },
+    { fromTraits: char2Traits, toTraits: char1Traits },
+  ];
 
-    // Check for toxic combinations
-    const toxicMatches = trait1.toxicWith.filter((id) => trait2Ids.includes(id));
-    if (toxicMatches.length > 0) {
-      toxicCount += toxicMatches.length;
-      toxicMatches.forEach((id) => {
-        const trait2 = getTraitById(id);
-        warnings.push(
-          `⚠️ Toxic dynamic: ${trait1.name} + ${trait2?.name} - High risk of emotional harm`
-        );
-      });
-    }
+  allTraitPairs.forEach(({ fromTraits, toTraits }) => {
+    fromTraits.forEach((trait1) => {
+      const trait2Ids = toTraits.map((t) => t.id);
 
-    // Check for conflicts
-    const conflictMatches = trait1.conflictsWith.filter((id) => trait2Ids.includes(id));
-    if (conflictMatches.length > 0) {
-      conflictCount += conflictMatches.length;
-      conflictMatches.forEach((id) => {
-        const trait2 = getTraitById(id);
-        warnings.push(
-          `⚡ Conflict: ${trait1.name} + ${trait2?.name} - Frequent disagreements likely`
-        );
-      });
-    }
+      // Check for toxic combinations
+      const toxicMatches = trait1.toxicWith.filter((id) => trait2Ids.includes(id));
+      if (toxicMatches.length > 0) {
+        toxicMatches.forEach((id) => {
+          const trait2 = getTraitById(id);
+          const warningMsg = `⚠️ Toxic dynamic: ${trait1.name} + ${trait2?.name} - High risk of emotional harm`;
+          // Avoid duplicates by checking if reverse already exists
+          if (!warnings.includes(warningMsg)) {
+            toxicCount++;
+            warnings.push(warningMsg);
+          }
+        });
+      }
 
-    // Check for synergies
-    const synergyMatches = trait1.synergizesWith.filter((id) => trait2Ids.includes(id));
-    if (synergyMatches.length > 0) {
-      synergyCount += synergyMatches.length;
-      synergyMatches.forEach((id) => {
-        const trait2 = getTraitById(id);
-        strengths.push(
-          `✅ Synergy: ${trait1.name} + ${trait2?.name} - Natural compatibility`
-        );
-      });
-    }
+      // Check for conflicts
+      const conflictMatches = trait1.conflictsWith.filter((id) => trait2Ids.includes(id));
+      if (conflictMatches.length > 0) {
+        conflictMatches.forEach((id) => {
+          const trait2 = getTraitById(id);
+          const warningMsg = `⚡ Conflict: ${trait1.name} + ${trait2?.name} - Frequent disagreements likely`;
+          if (!warnings.includes(warningMsg)) {
+            conflictCount++;
+            warnings.push(warningMsg);
+          }
+        });
+      }
 
-    // Check for growth opportunities
-    const growthMatches = trait1.growthOpportunities.filter((id) => trait2Ids.includes(id));
-    if (growthMatches.length > 0) {
-      growthCount += growthMatches.length;
-      growthMatches.forEach((id) => {
-        const trait2 = getTraitById(id);
-        growthAreas.push(
-          `🌱 Growth: ${trait1.name} can learn from ${trait2?.name} - Positive influence`
-        );
-      });
-    }
+      // Check for synergies
+      const synergyMatches = trait1.synergizesWith.filter((id) => trait2Ids.includes(id));
+      if (synergyMatches.length > 0) {
+        synergyMatches.forEach((id) => {
+          const trait2 = getTraitById(id);
+          const strengthMsg = `✅ Synergy: ${trait1.name} + ${trait2?.name} - Natural compatibility`;
+          if (!strengths.includes(strengthMsg)) {
+            synergyCount++;
+            strengths.push(strengthMsg);
+          }
+        });
+      }
+
+      // Check for growth opportunities
+      const growthMatches = trait1.growthOpportunities.filter((id) => trait2Ids.includes(id));
+      if (growthMatches.length > 0) {
+        growthMatches.forEach((id) => {
+          const trait2 = getTraitById(id);
+          const growthMsg = `🌱 Growth: ${trait1.name} can learn from ${trait2?.name} - Positive influence`;
+          if (!growthAreas.includes(growthMsg)) {
+            growthCount++;
+            growthAreas.push(growthMsg);
+          }
+        });
+      }
+    });
   });
 
   // Calculate score (0-100)

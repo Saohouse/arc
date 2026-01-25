@@ -99,6 +99,30 @@ export default async function EditCharacterPage({
         <p className="text-sm text-muted-foreground">
           Update canon profile details.
         </p>
+        {!character.wizardData && (
+          <div className="mt-3 flex items-center gap-2 p-3 rounded-lg bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900/30">
+            <span className="text-sm text-purple-900 dark:text-purple-200">
+              💡 Want deeper character development?
+            </span>
+            <Link
+              href={`/archive/characters/${character.id}/wizard`}
+              className="text-sm font-medium text-purple-700 dark:text-purple-300 hover:underline"
+            >
+              Complete Frank Daniel Wizard →
+            </Link>
+          </div>
+        )}
+        {character.wizardData && (
+          <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+            ✨ Character developed using Frank Daniel Method •
+            <Link
+              href={`/archive/characters/${character.id}/wizard`}
+              className="text-sm text-muted-foreground hover:text-foreground underline"
+            >
+              Review or update wizard answers
+            </Link>
+          </div>
+        )}
       </div>
 
       <form action={updateCharacter} className="space-y-5">

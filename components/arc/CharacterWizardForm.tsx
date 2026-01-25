@@ -5,23 +5,36 @@ import { CharacterWizard } from "./CharacterWizard";
 
 interface CharacterWizardFormProps {
   action: (formData: FormData) => Promise<void>;
+  characterId?: string; // If provided, we're editing an existing character
+  characterName?: string; // If provided, we're editing an existing character
+  initialData?: Record<string, string>; // Pre-populate with existing wizard data
 }
 
-export function CharacterWizardForm({ action }: CharacterWizardFormProps) {
+export function CharacterWizardForm({ action, characterId, characterName, initialData }: CharacterWizardFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const isEditMode = !!characterName;
 
   const handleSave = async (data: Record<string, string>) => {
-    // Prompt for character name
-    const name = prompt("Enter character name:");
-    if (!name?.trim()) return;
+    // If editing existing character, skip the name prompt
+    let name = characterName;
+    
+    // Only prompt for name if creating new character
+    if (!isEditMode) {
+      name = prompt("Enter character name:");
+      if (!name?.trim()) return;
+    }
 
     setIsSubmitting(true);
 
     try {
       // Create form data
       const formData = new FormData();
-      formData.append("name", name);
+      if (isEditMode && characterId) {
+        formData.append("characterId", characterId);
+      } else if (!isEditMode) {
+        formData.append("name", name!);
+      }
       formData.append("wizardData", JSON.stringify(data));
 
       // Submit to server action
@@ -35,20 +48,26 @@ export function CharacterWizardForm({ action }: CharacterWizardFormProps) {
         return;
       }
       
-      console.error("Failed to create character:", error);
-      alert("Failed to create character. Please try again.");
+      console.error(`Failed to ${isEditMode ? 'update' : 'create'} character:`, error);
+      alert(`Failed to ${isEditMode ? 'update' : 'create'} character. Please try again.`);
       setIsSubmitting(false);
     }
   };
 
   return (
     <form ref={formRef}>
-      <CharacterWizard onSave={handleSave} />
+      <CharacterWizard 
+        onSave={handleSave} 
+        characterName={characterName}
+        initialData={initialData}
+      />
       {isSubmitting && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-card border rounded-lg p-6 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">Creating character...</p>
+            <p className="text-sm text-muted-foreground">
+              {isEditMode ? 'Updating character...' : 'Creating character...'}
+            </p>
           </div>
         </div>
       )}
