@@ -9,7 +9,17 @@ export default async function WorldsPage() {
   const [worlds, customTags] = await Promise.all([
     prisma.world.findMany({
       where: { storyId: currentStory.id },
-      orderBy: { name: "asc" },
+      orderBy: { order: "asc" },
+      select: {
+        id: true,
+        name: true,
+        summary: true,
+        imageUrl: true,
+        tags: true,
+        order: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     }),
     prisma.tag.findMany({
       where: { storyId: currentStory.id },
@@ -23,6 +33,7 @@ export default async function WorldsPage() {
 
   return (
     <WorldsPageClient
+      storyId={currentStory.id}
       worlds={worlds}
       tagColorMap={tagColorMap}
       newWorldButton={

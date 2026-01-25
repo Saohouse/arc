@@ -9,7 +9,17 @@ export default async function ObjectsPage() {
   const [objects, customTags] = await Promise.all([
     prisma.object.findMany({
       where: { storyId: currentStory.id },
-      orderBy: { name: "asc" },
+      orderBy: { order: "asc" },
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        imageUrl: true,
+        tags: true,
+        order: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     }),
     prisma.tag.findMany({
       where: { storyId: currentStory.id },
@@ -23,6 +33,7 @@ export default async function ObjectsPage() {
 
   return (
     <ObjectsPageClient
+      storyId={currentStory.id}
       objects={objects}
       tagColorMap={tagColorMap}
       newObjectButton={

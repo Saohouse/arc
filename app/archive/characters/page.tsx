@@ -9,7 +9,17 @@ export default async function CharactersPage() {
   const [characters, customTags] = await Promise.all([
     prisma.character.findMany({
       where: { storyId: currentStory.id },
-      orderBy: { name: "asc" },
+      orderBy: { order: "asc" },
+      select: {
+        id: true,
+        name: true,
+        title: true,
+        imageUrl: true,
+        tags: true,
+        order: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     }),
     prisma.tag.findMany({
       where: { storyId: currentStory.id },
@@ -23,6 +33,7 @@ export default async function CharactersPage() {
 
   return (
     <CharactersPageClient
+      storyId={currentStory.id}
       characters={characters}
       tagColorMap={tagColorMap}
       newCharacterButton={
