@@ -177,7 +177,9 @@ function WorldsList({ storyId, worlds, tagColorMap }: WorldsListProps) {
         />
       ) : (
         <div className="grid gap-3">
-          {sortedWorlds.map(renderWorld)}
+          {sortedWorlds.map((world) => (
+            <div key={world.id}>{renderWorld(world)}</div>
+          ))}
         </div>
       )}
     </>

@@ -177,7 +177,9 @@ function LocationsList({ storyId, locations, tagColorMap }: LocationsListProps) 
         />
       ) : (
         <div className="grid gap-3">
-          {sortedLocations.map(renderLocation)}
+          {sortedLocations.map((location) => (
+            <div key={location.id}>{renderLocation(location)}</div>
+          ))}
         </div>
       )}
     </>

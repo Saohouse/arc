@@ -177,7 +177,9 @@ function CharactersList({ storyId, characters, tagColorMap }: CharactersListProp
         />
       ) : (
         <div className="grid gap-3">
-          {sortedCharacters.map(renderCharacter)}
+          {sortedCharacters.map((character) => (
+            <div key={character.id}>{renderCharacter(character)}</div>
+          ))}
         </div>
       )}
     </>

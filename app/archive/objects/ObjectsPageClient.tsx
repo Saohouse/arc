@@ -177,7 +177,9 @@ function ObjectsList({ storyId, objects, tagColorMap }: ObjectsListProps) {
         />
       ) : (
         <div className="grid gap-3">
-          {sortedObjects.map(renderObject)}
+          {sortedObjects.map((object) => (
+            <div key={object.id}>{renderObject(object)}</div>
+          ))}
         </div>
       )}
     </>
