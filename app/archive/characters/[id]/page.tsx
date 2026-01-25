@@ -79,7 +79,7 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
     .filter(Boolean);
   const psychologyTraits = psychologyTraitIds
     .map((id) => getTraitById(id))
-    .filter(Boolean);
+    .filter((trait): trait is NonNullable<typeof trait> => trait !== undefined);
 
   // Group traits by category
   const traitsByCategory = psychologyTraits.reduce((acc, trait) => {
