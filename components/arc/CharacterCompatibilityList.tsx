@@ -48,17 +48,18 @@ export function CharacterCompatibilityList({
       .sort((a, b) => b.compatibility.score - a.compatibility.score);
   }, [character, allCharacters]);
 
-  // Get gradient color based on score
-  const getGradientColor = (level: CompatibilityScore["level"]) => {
-    switch (level) {
-      case "healthy":
-        return "bg-gradient-to-r from-green-500 to-green-600";
-      case "growth":
-        return "bg-gradient-to-r from-blue-500 to-blue-600";
-      case "challenging":
-        return "bg-gradient-to-r from-yellow-500 to-yellow-600";
-      case "toxic":
-        return "bg-gradient-to-r from-red-500 to-red-600";
+  // Get gradient color based on score percentage (0-100)
+  const getGradientColorByScore = (score: number) => {
+    if (score >= 80) {
+      return "bg-gradient-to-r from-green-500 to-green-600";
+    } else if (score >= 65) {
+      return "bg-gradient-to-r from-lime-500 to-green-500";
+    } else if (score >= 50) {
+      return "bg-gradient-to-r from-yellow-500 to-yellow-600";
+    } else if (score >= 35) {
+      return "bg-gradient-to-r from-orange-500 to-orange-600";
+    } else {
+      return "bg-gradient-to-r from-red-500 to-red-600";
     }
   };
 
@@ -126,8 +127,8 @@ export function CharacterCompatibilityList({
             </div>
             <div className="h-2 bg-muted rounded-full overflow-hidden">
               <div
-                className={`h-full transition-all ${getGradientColor(
-                  compatibility.level
+                className={`h-full transition-all ${getGradientColorByScore(
+                  compatibility.score
                 )}`}
                 style={{ width: `${compatibility.score}%` }}
               />
