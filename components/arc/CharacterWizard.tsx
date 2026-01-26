@@ -14,7 +14,6 @@ export function CharacterWizard({ initialData = {}, onSave, characterName }: Cha
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>(initialData);
   const [editableName, setEditableName] = useState(characterName || "");
-  const [previousName, setPreviousName] = useState(characterName || "");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const hasLoadedDraft = useRef(false);
 
@@ -22,34 +21,37 @@ export function CharacterWizard({ initialData = {}, onSave, characterName }: Cha
   const isFirstSection = currentSectionIndex === 0;
   const isLastSection = currentSectionIndex === FRANK_DANIEL_SECTIONS.length - 1;
 
-  // Function to replace all occurrences of old name with new name in all answers
-  const replaceNameInAnswers = (oldName: string, newName: string) => {
-    if (!oldName || !newName || oldName === newName) return;
-    
-    const updatedAnswers: Record<string, string> = {};
-    Object.keys(answers).forEach((key) => {
-      const value = answers[key];
-      if (typeof value === "string") {
-        // Replace all occurrences (case-insensitive)
-        const regex = new RegExp(oldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-        updatedAnswers[key] = value.replace(regex, newName);
-      } else {
-        updatedAnswers[key] = value;
-      }
-    });
-    setAnswers(updatedAnswers);
-    setHasUnsavedChanges(true);
+  // Helper function to replace {{name}} placeholder with actual name for display
+  const replacePlaceholders = (text: string): string => {
+    if (!editableName) return text;
+    return text.replace(/\{\{name\}\}/gi, editableName);
   };
 
-  // Handle name change
-  const handleNameChange = (newName: string) => {
-    setEditableName(newName);
-    if (previousName && newName && previousName !== newName) {
-      replaceNameInAnswers(previousName, newName);
-      setPreviousName(newName);
-    } else if (!previousName && newName) {
-      setPreviousName(newName);
-    }
+  // Helper function to render text with highlighted placeholders
+  const renderWithHighlightedPlaceholders = (text: string) => {
+    if (!text) return null;
+    
+    // Split by {{name}} placeholder (case-insensitive)
+    const parts = text.split(/(\{\{name\}\})/gi);
+    
+    return (
+      <>
+        {parts.map((part, idx) => {
+          if (part.toLowerCase() === '{{name}}') {
+            return (
+              <span
+                key={idx}
+                className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-1 rounded font-medium"
+                title="Dynamic name placeholder"
+              >
+                {editableName || '{{name}}'}
+              </span>
+            );
+          }
+          return <span key={idx}>{part}</span>;
+        })}
+      </>
+    );
   };
 
   // Auto-save to localStorage
@@ -133,21 +135,21 @@ export function CharacterWizard({ initialData = {}, onSave, characterName }: Cha
         </div>
       </div>
 
-      {/* Character Name Field */}
-      {editableName && (
-        <div className="rounded-lg border p-6 bg-card">
-          <label className="block text-sm font-semibold mb-3">
+      {/* Character Name Field - Clean and simple */}
+      {characterName && (
+        <div className="rounded-lg border p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20">
+          <label className="block text-sm font-semibold mb-2">
             Character Name
           </label>
           <input
             type="text"
             value={editableName}
-            onChange={(e) => handleNameChange(e.target.value)}
+            onChange={(e) => setEditableName(e.target.value)}
             placeholder="Enter character name..."
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           />
           <p className="text-xs text-muted-foreground mt-2">
-            💡 Changing the name will automatically update it throughout all answers.
+            💡 The name updates automatically everywhere it appears (shown as <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-1 rounded text-xs">highlighted</span>)
           </p>
         </div>
       )}
@@ -229,6 +231,17 @@ export function CharacterWizard({ initialData = {}, onSave, characterName }: Cha
                 {q.helpText && (
                   <p className="text-sm text-muted-foreground">{q.helpText}</p>
                 )}
+                
+                {/* Show preview with highlighted placeholders if value contains {{name}} */}
+                {value && value.toLowerCase().includes('{{name}}') && (
+                  <div className="rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20 p-3 text-sm mb-2">
+                    <div className="text-xs text-blue-600 dark:text-blue-400 font-medium mb-1">Preview:</div>
+                    <div className="text-foreground">
+                      {renderWithHighlightedPlaceholders(value)}
+                    </div>
+                  </div>
+                )}
+                
                 <textarea
                   id={fullId}
                   value={value}
@@ -263,6 +276,15 @@ export function CharacterWizard({ initialData = {}, onSave, characterName }: Cha
           >
             <Save className="w-4 h-4" />
             Save Draft
+          </button>
+          
+          <button
+            type="button"
+            onClick={handleComplete}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            <Save className="w-4 h-4" />
+            Complete Character
           </button>
 
           {hasUnsavedChanges && (

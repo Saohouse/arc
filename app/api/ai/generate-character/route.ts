@@ -87,6 +87,12 @@ export async function POST(request: NextRequest) {
 
 Your task is to generate comprehensive character development answers based on the user's concept and ensemble needs.
 
+CRITICAL: When writing answers in wizardData, use {{name}} as a placeholder wherever you would use the character's name. This allows the name to be updated dynamically later.
+Examples:
+- "{{name}} is a former composer..." (not "John is a former composer...")
+- "{{name}}'s greatest fear is..." (not "John's greatest fear is...")
+- "When {{name}} discovers the truth..." (not "When John discovers the truth...")
+
 IMPORTANT: Return a JSON object with this EXACT structure:
 {
   "name": "Character Name",
@@ -94,9 +100,9 @@ IMPORTANT: Return a JSON object with this EXACT structure:
   "wizardData": {
     "character_type_type": "protagonist",
     "character_type_type_notes": "...",
-    "core_identity_who": "...",
+    "core_identity_who": "{{name}} is a...",
     "core_identity_why_care": "...",
-    // ... all other sections
+    // ... all other sections (use {{name}} placeholder in all answers)
   },
   "reasoning": "Brief explanation of how this character balances the cast"
 }

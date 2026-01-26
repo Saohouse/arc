@@ -272,7 +272,10 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
 
           {/* Frank Daniel Character Development */}
           {character.wizardData && (
-            <WizardDataDisplay wizardData={character.wizardData as Record<string, string>} />
+            <WizardDataDisplay 
+              wizardData={character.wizardData as Record<string, string>}
+              characterName={character.name}
+            />
           )}
           
           {/* Prompt to add wizard data if not present */}

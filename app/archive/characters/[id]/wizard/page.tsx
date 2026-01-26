@@ -19,6 +19,7 @@ async function updateCharacterWizardData(formData: FormData) {
 
   const wizardDataString = String(formData.get("wizardData") || "{}");
   const psychologyTraits = String(formData.get("psychologyTraits") || "");
+  const name = String(formData.get("name") || "");
 
   let wizardData;
   try {
@@ -27,12 +28,23 @@ async function updateCharacterWizardData(formData: FormData) {
     wizardData = {};
   }
 
+  const updateData: any = {
+    wizardData,
+  };
+
+  // Update name if provided
+  if (name.trim()) {
+    updateData.name = name.trim();
+  }
+
+  // Update psychology traits if provided
+  if (psychologyTraits) {
+    updateData.psychologyTraits = psychologyTraits;
+  }
+
   await prisma.character.update({
     where: { id: characterId },
-    data: {
-      wizardData,
-      ...(psychologyTraits && { psychologyTraits }),
-    },
+    data: updateData,
   });
 
   revalidatePath(`/archive/characters/${characterId}`);

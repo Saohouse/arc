@@ -74,6 +74,12 @@ export function CharacterWizardForm({
       } else if (!isEditMode) {
         formData.append("name", name!);
       }
+      
+      // Always include the name if it was updated
+      if (updatedName) {
+        formData.append("name", updatedName);
+      }
+      
       formData.append("wizardData", JSON.stringify(data));
       
       // Include psychology traits from AI if available

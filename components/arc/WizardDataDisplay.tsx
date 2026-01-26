@@ -6,14 +6,42 @@ import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 
 interface WizardDataDisplayProps {
   wizardData: Record<string, string>;
+  characterName?: string; // Add character name for placeholder replacement
 }
 
-export function WizardDataDisplay({ wizardData }: WizardDataDisplayProps) {
+export function WizardDataDisplay({ wizardData, characterName }: WizardDataDisplayProps) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
 
   if (!wizardData || Object.keys(wizardData).length === 0) {
     return null;
   }
+
+  // Helper function to render text with highlighted placeholders
+  const renderWithHighlightedPlaceholders = (text: string) => {
+    if (!text) return null;
+    
+    // Split by {{name}} placeholder (case-insensitive)
+    const parts = text.split(/(\{\{name\}\})/gi);
+    
+    return (
+      <>
+        {parts.map((part, idx) => {
+          if (part.toLowerCase() === '{{name}}') {
+            return (
+              <span
+                key={idx}
+                className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-1 rounded font-medium"
+                title="Dynamic name placeholder"
+              >
+                {characterName || '{{name}}'}
+              </span>
+            );
+          }
+          return <span key={idx}>{part}</span>;
+        })}
+      </>
+    );
+  };
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections((prev) => {
@@ -123,7 +151,7 @@ export function WizardDataDisplay({ wizardData }: WizardDataDisplayProps) {
                           {q.question}
                         </div>
                         <div className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                          {answer}
+                          {renderWithHighlightedPlaceholders(answer)}
                         </div>
                       </div>
                     );
