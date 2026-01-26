@@ -6,6 +6,13 @@ import { CreateLocationModal } from "./CreateLocationModal";
 type Location = {
   id: string;
   name: string;
+  locationType?: string | null;
+  parent?: {
+    id: string;
+    name: string;
+    locationType?: string | null;
+  } | null;
+  parentLocationId?: string | null;
 };
 
 type LocationSelectorProps = {
@@ -37,6 +44,42 @@ export function LocationSelector({
     }, 0);
   }
 
+  // Build breadcrumb path for a location
+  const getLocationPath = (location: Location): string => {
+    const parts: string[] = [];
+    
+    // Add parent path if exists
+    if (location.parent) {
+      const parentLoc = locations.find((l) => l.id === location.parentLocationId);
+      if (parentLoc) {
+        const parentPath = getLocationPath(parentLoc);
+        if (parentPath) parts.push(parentPath);
+      } else if (location.parent.name) {
+        // Fallback to parent name if not in list
+        parts.push(location.parent.name);
+      }
+    }
+    
+    parts.push(location.name);
+    return parts.join(" > ");
+  };
+
+  // Get icon for location type
+  const getLocationIcon = (locationType?: string | null): string => {
+    switch (locationType) {
+      case "country":
+        return "🌍";
+      case "province":
+        return "🏛️";
+      case "city":
+        return "🏙️";
+      case "town":
+        return "🏘️";
+      default:
+        return "📍";
+    }
+  };
+
   return (
     <>
       <div className="block">
@@ -60,11 +103,15 @@ export function LocationSelector({
           defaultValue={defaultValue || ""}
         >
           <option value="">No home location</option>
-          {locations.map((location) => (
-            <option key={location.id} value={location.id}>
-              {location.name}
-            </option>
-          ))}
+          {locations.map((location) => {
+            const path = getLocationPath(location);
+            const icon = getLocationIcon(location.locationType);
+            return (
+              <option key={location.id} value={location.id}>
+                {icon} {path}
+              </option>
+            );
+          })}
         </select>
       </div>
 

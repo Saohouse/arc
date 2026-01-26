@@ -30,6 +30,9 @@ export async function POST(request: Request) {
       .filter(Boolean)
       .join(",");
 
+    const locationType = String(formData.get("locationType") ?? "").trim() || null;
+    const parentLocationId = String(formData.get("parentLocationId") ?? "").trim() || null;
+
     const imageFile = formData.get("image");
     const imageUrl =
       imageFile instanceof File && imageFile.size > 0
@@ -43,6 +46,8 @@ export async function POST(request: Request) {
         overview: overview || null,
         imageUrl,
         tags,
+        locationType,
+        parentLocationId,
         storyId: currentStory.id,
       },
     });

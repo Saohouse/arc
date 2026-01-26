@@ -60,6 +60,19 @@ export default async function NewCharacterPage() {
   const locations = await prisma.location.findMany({
     where: { storyId: currentStory.id },
     orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      locationType: true,
+      parentLocationId: true,
+      parent: {
+        select: {
+          id: true,
+          name: true,
+          locationType: true,
+        },
+      },
+    },
   });
 
   return (

@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -162,11 +163,20 @@ model Location {
   imageUrl  String?
   tags      String   @default("") // comma-separated for now
   order     Int      @default(0) // For custom sorting
+  
+  // Hierarchy fields
+  locationType     String? // "country", "province", "city", "town", or null for legacy/standalone
+  parentLocationId String? // References parent location
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   storyId String
   story   Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  // Self-referential relations for hierarchy
+  parent   Location?  @relation("LocationHierarchy", fields: [parentLocationId], references: [id], onDelete: SetNull)
+  children Location[] @relation("LocationHierarchy")
 
   residents Character[]
   scenes    Scene[]
@@ -175,6 +185,9 @@ model Location {
   @@index([storyId, order])
   @@index([storyId, name]) // For alphabetical sorting
   @@index([storyId, createdAt]) // For date sorting
+  @@index([parentLocationId])
+  @@index([locationType])
+  @@index([storyId, locationType]) // For filtering by type within a story
 }
 
 model Object {

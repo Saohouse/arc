@@ -26,6 +26,9 @@ async function createLocation(formData: FormData) {
     .filter(Boolean)
     .join(",");
 
+  const locationType = String(formData.get("locationType") ?? "").trim() || null;
+  const parentLocationId = String(formData.get("parentLocationId") ?? "").trim() || null;
+
   const imageFile = formData.get("image");
   const imageUrl =
     imageFile instanceof File
@@ -39,6 +42,8 @@ async function createLocation(formData: FormData) {
       overview: overview || null,
       imageUrl,
       tags,
+      locationType,
+      parentLocationId,
       storyId: currentStory.id,
     },
   });
@@ -48,6 +53,19 @@ async function createLocation(formData: FormData) {
 
 export default async function NewLocationPage() {
   await requireRole("editor");
+  const currentStory = await requireStory();
+  
+  // Fetch all locations for parent selection
+  const allLocations = await prisma.location.findMany({
+    where: { storyId: currentStory.id },
+    select: {
+      id: true,
+      name: true,
+      locationType: true,
+    },
+    orderBy: { name: "asc" },
+  });
+
   return (
     <div className="max-w-2xl space-y-6">
       <div>
@@ -70,6 +88,41 @@ export default async function NewLocationPage() {
             placeholder="e.g. Atelier 9, Neon Alley"
           />
         </label>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <label className="block text-sm font-medium">
+            Location Type
+            <select
+              name="locationType"
+              className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+            >
+              <option value="">Standalone location</option>
+              <option value="country">🌍 Country</option>
+              <option value="province">🏛️ Province</option>
+              <option value="city">🏙️ City</option>
+              <option value="town">🏘️ Town</option>
+            </select>
+          </label>
+
+          <label className="block text-sm font-medium">
+            Parent Location
+            <select
+              name="parentLocationId"
+              className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+            >
+              <option value="">None (top-level)</option>
+              {allLocations.map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.locationType === "country" && "🌍 "}
+                  {loc.locationType === "province" && "🏛️ "}
+                  {loc.locationType === "city" && "🏙️ "}
+                  {loc.locationType === "town" && "🏘️ "}
+                  {loc.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
 
         <label className="block text-sm font-medium">
           Summary
