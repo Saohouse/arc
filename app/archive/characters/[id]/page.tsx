@@ -154,8 +154,8 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
           Back to Characters
         </Link>
 
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        {/* Breadcrumb - Hidden on mobile */}
+        <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
           <Link href="/archive" className="hover:text-foreground transition-colors">
             Archive
           </Link>

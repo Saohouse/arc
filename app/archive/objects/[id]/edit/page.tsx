@@ -75,11 +75,42 @@ export default async function EditObjectPage({ params }: EditObjectPageProps) {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <div>
-        <div className="text-sm text-muted-foreground">
-          Archive / Objects / {object.name}
+      <div className="space-y-3">
+        {/* Back Button */}
+        <Link
+          href={`/archive/objects/${object.id}`}
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M10 19l-7-7m0 0l7-7m-7 7h18"
+            />
+          </svg>
+          Back to {object.name}
+        </Link>
+
+        {/* Breadcrumb Navigation - Hidden on mobile */}
+        <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
+          <Link href="/archive" className="hover:text-foreground transition-colors">
+            Archive
+          </Link>
+          <span>/</span>
+          <Link href="/archive/objects" className="hover:text-foreground transition-colors">
+            Objects
+          </Link>
+          <span>/</span>
+          <span className="text-foreground">{object.name}</span>
         </div>
-        <h1 className="text-3xl font-semibold">Edit object</h1>
+
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Edit object</h1>
         <p className="text-sm text-muted-foreground">
           Update item details.
         </p>
@@ -145,13 +176,13 @@ export default async function EditObjectPage({ params }: EditObjectPageProps) {
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="submit"
-            className="rounded bg-foreground px-5 py-2.5 text-[13px] font-medium text-background hover:bg-foreground/90 transition-colors"
+            className="inline-flex items-center justify-center rounded-lg bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:bg-foreground/90 hover:scale-[1.02] hover:shadow-lg transition-all whitespace-nowrap touch-manipulation"
           >
             Save changes
           </button>
           <Link
             href={`/archive/objects/${object.id}`}
-            className="text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+            className="inline-flex items-center justify-center rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted hover:border-foreground/30 hover:scale-[1.02] hover:shadow-md transition-all whitespace-nowrap touch-manipulation"
           >
             Cancel
           </Link>

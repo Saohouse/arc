@@ -51,36 +51,65 @@ export default async function ObjectPage({ params }: ObjectPageProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="text-sm text-muted-foreground">
-            Archive / Objects
-          </div>
-          <h1 className="text-3xl font-semibold">{object.name}</h1>
-          {object.category ? (
-            <p className="text-sm text-muted-foreground">{object.category}</p>
-          ) : null}
-        </div>
-        <div className="flex items-center gap-3">
-          <RoleGate allowedRoles={["editor", "admin"]}>
-            <Link
-              href={`/archive/objects/${object.id}/edit`}
-              className="rounded bg-foreground px-5 py-2.5 text-[13px] font-medium text-background hover:bg-foreground/90 transition-colors"
-            >
-              Edit
-            </Link>
-            <DeleteButton
-              id={object.id}
-              name={object.name}
-              action={deleteObject}
-            />
-          </RoleGate>
-          <Link
-            href="/archive/objects"
-            className="text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+      {/* Header Section */}
+      <div className="space-y-4">
+        {/* Back Button */}
+        <Link
+          href="/archive/objects"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            Back to list
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M10 19l-7-7m0 0l7-7m-7 7h18"
+            />
+          </svg>
+          Back to Objects
+        </Link>
+
+        {/* Breadcrumb - Hidden on mobile */}
+        <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
+          <Link href="/archive" className="hover:text-foreground transition-colors">
+            Archive
           </Link>
+          <span>/</span>
+          <Link href="/archive/objects" className="hover:text-foreground transition-colors">
+            Objects
+          </Link>
+          <span>/</span>
+          <span className="text-foreground">{object.name}</span>
+        </div>
+
+        {/* Title and Actions */}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-semibold break-words">{object.name}</h1>
+            {object.category ? (
+              <p className="text-sm text-muted-foreground mt-1">{object.category}</p>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 sm:flex-shrink-0">
+            <RoleGate allowedRoles={["editor", "admin"]}>
+              <Link
+                href={`/archive/objects/${object.id}/edit`}
+                className="inline-flex items-center justify-center rounded-lg bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:bg-foreground/90 hover:scale-[1.02] hover:shadow-lg transition-all whitespace-nowrap touch-manipulation"
+              >
+                Edit
+              </Link>
+              <DeleteButton
+                id={object.id}
+                name={object.name}
+                action={deleteObject}
+              />
+            </RoleGate>
+          </div>
         </div>
       </div>
 

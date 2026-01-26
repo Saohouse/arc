@@ -113,8 +113,8 @@ export default async function EditCharacterPage({
           Back to {character.name}
         </Link>
 
-        {/* Breadcrumb Navigation */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        {/* Breadcrumb Navigation - Hidden on mobile */}
+        <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
           <Link href="/archive" className="hover:text-foreground transition-colors">
             Archive
           </Link>
