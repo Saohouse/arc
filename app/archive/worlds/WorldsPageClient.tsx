@@ -169,7 +169,7 @@ function WorldsList({ storyId, worlds, tagColorMap }: WorldsListProps) {
           </div>
           <button
             onClick={() => setIsCompact(!isCompact)}
-            className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors"
+            className="inline-flex items-center justify-center rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-muted hover:border-foreground/30 hover:scale-[1.02] hover:shadow-md transition-all touch-manipulation whitespace-nowrap"
           >
             {isCompact ? "Show Photos" : "Hide Photos"}
           </button>
@@ -208,15 +208,20 @@ export function WorldsPageClient({
 }: WorldsPageClientProps) {
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="text-sm text-muted-foreground">Archive / Worlds</div>
-          <h1 className="text-3xl font-semibold">🌍 Worlds</h1>
-          <p className="text-sm text-muted-foreground">
-            Macro settings, timelines, and canon rulesets.
-          </p>
+      {/* Header Section - Mobile Optimized */}
+      <div className="space-y-4">
+        <div className="text-sm text-muted-foreground">Archive / Worlds</div>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="flex-1">
+            <h1 className="text-2xl sm:text-3xl font-semibold">🌍 Worlds</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Macro settings, timelines, and canon rulesets.
+            </p>
+          </div>
+          <div className="flex-shrink-0">
+            {newWorldButton}
+          </div>
         </div>
-        {newWorldButton}
       </div>
 
       {worlds.length === 0 ? (

@@ -76,21 +76,24 @@ export default async function RelationshipsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-semibold">🔗 Relationships</h1>
-          <p className="text-sm text-muted-foreground">
-            Map connections between entities in your world.
-          </p>
+      {/* Header Section - Mobile Optimized */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="flex-1">
+            <h1 className="text-2xl sm:text-3xl font-semibold">🔗 Relationships</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Map connections between entities in your world.
+            </p>
+          </div>
+          <RoleGate allowedRoles={["editor", "admin"]}>
+            <Link
+              href="/relationships/new"
+              className="inline-flex items-center justify-center rounded-lg bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:bg-foreground/90 hover:scale-[1.02] hover:shadow-lg transition-all whitespace-nowrap touch-manipulation"
+            >
+              New relationship
+            </Link>
+          </RoleGate>
         </div>
-        <RoleGate allowedRoles={["editor", "admin"]}>
-          <Link
-            href="/relationships/new"
-            className="rounded bg-foreground px-5 py-2.5 text-[13px] font-medium text-background hover:bg-foreground/90 transition-colors"
-          >
-            New relationship
-          </Link>
-        </RoleGate>
       </div>
 
       {/* Graph View */}

@@ -310,25 +310,25 @@ export default async function HomePage() {
               <div className="mt-6 flex flex-wrap justify-center gap-3">
                 <Link
                   href="/archive/characters/new"
-                  className="rounded bg-foreground px-5 py-2.5 text-[13px] font-medium text-background hover:bg-foreground/90 transition-colors"
+                  className="inline-flex items-center justify-center rounded-lg bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:bg-foreground/90 hover:scale-[1.02] hover:shadow-lg transition-all whitespace-nowrap touch-manipulation"
                 >
                   New Character
                 </Link>
                 <Link
                   href="/archive/worlds/new"
-                  className="rounded border px-5 py-2.5 text-[13px] font-medium hover:bg-muted transition-colors"
+                  className="inline-flex items-center justify-center rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted hover:border-foreground/30 hover:scale-[1.02] hover:shadow-md transition-all whitespace-nowrap touch-manipulation"
                 >
                   New World
                 </Link>
                 <Link
                   href="/archive/locations/new"
-                  className="rounded border px-5 py-2.5 text-[13px] font-medium hover:bg-muted transition-colors"
+                  className="inline-flex items-center justify-center rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted hover:border-foreground/30 hover:scale-[1.02] hover:shadow-md transition-all whitespace-nowrap touch-manipulation"
                 >
                   New Location
                 </Link>
                 <Link
                   href="/archive/objects/new"
-                  className="rounded border px-5 py-2.5 text-[13px] font-medium hover:bg-muted transition-colors"
+                  className="inline-flex items-center justify-center rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted hover:border-foreground/30 hover:scale-[1.02] hover:shadow-md transition-all whitespace-nowrap touch-manipulation"
                 >
                   New Object
                 </Link>

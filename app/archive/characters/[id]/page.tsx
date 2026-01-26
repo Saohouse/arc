@@ -152,7 +152,7 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
             <RoleGate allowedRoles={["editor", "admin"]}>
               <Link
                 href={`/archive/characters/${character.id}/edit`}
-                className="inline-flex items-center justify-center rounded-lg bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:bg-foreground/90 transition-colors whitespace-nowrap touch-manipulation"
+                className="inline-flex items-center justify-center rounded-lg bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:bg-foreground/90 hover:scale-[1.02] hover:shadow-lg transition-all whitespace-nowrap touch-manipulation"
               >
                 Edit
               </Link>
@@ -351,7 +351,7 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
                     </RoleGate>
                     <Link
                       href="/archive/characters/new/wizard/test"
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/20 transition-colors text-sm"
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/20 hover:border-purple-400 dark:hover:border-purple-600 hover:scale-[1.02] hover:shadow-md transition-all text-sm touch-manipulation whitespace-nowrap"
                     >
                       Learn About the Method
                     </Link>

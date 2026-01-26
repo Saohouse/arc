@@ -77,34 +77,37 @@ export default async function TimelinePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-semibold">📅 Timeline</h1>
-          <p className="text-sm text-muted-foreground">
-            Visual timeline of episodes and story arcs.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Link
-            href="/timeline/sagas"
-            className="rounded border px-4 py-2 text-[13px] font-medium hover:bg-muted transition-colors"
-          >
-            📚 Sagas
-          </Link>
-          <RoleGate allowedRoles={["editor", "admin"]}>
+      {/* Header Section - Mobile Optimized */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="flex-1">
+            <h1 className="text-2xl sm:text-3xl font-semibold">📅 Timeline</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Visual timeline of episodes and story arcs.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
             <Link
-              href="/timeline/arcs/new"
-              className="rounded border px-4 py-2 text-[13px] font-medium hover:bg-muted transition-colors"
+              href="/timeline/sagas"
+              className="inline-flex items-center justify-center rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted hover:border-foreground/30 hover:scale-[1.02] hover:shadow-md transition-all whitespace-nowrap touch-manipulation"
             >
-              + New Arc
+              📚 Sagas
             </Link>
-            <Link
-              href="/episodes/new"
-              className="rounded bg-foreground px-4 py-2 text-[13px] font-medium text-background hover:bg-foreground/90 transition-colors"
-            >
-              + New Episode
-            </Link>
-          </RoleGate>
+            <RoleGate allowedRoles={["editor", "admin"]}>
+              <Link
+                href="/timeline/arcs/new"
+                className="inline-flex items-center justify-center rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted hover:border-foreground/30 hover:scale-[1.02] hover:shadow-md transition-all whitespace-nowrap touch-manipulation"
+              >
+                + New Arc
+              </Link>
+              <Link
+                href="/episodes/new"
+                className="inline-flex items-center justify-center rounded-lg bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:bg-foreground/90 hover:scale-[1.02] hover:shadow-lg transition-all whitespace-nowrap touch-manipulation"
+              >
+                + New Episode
+              </Link>
+            </RoleGate>
+          </div>
         </div>
       </div>
 

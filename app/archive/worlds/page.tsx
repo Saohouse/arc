@@ -40,7 +40,7 @@ export default async function WorldsPage() {
         <RoleGate allowedRoles={["editor", "admin"]}>
           <Link
             href="/archive/worlds/new"
-            className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background hover:bg-foreground/90"
+            className="inline-flex items-center justify-center rounded-lg bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:bg-foreground/90 hover:scale-[1.02] hover:shadow-lg transition-all whitespace-nowrap touch-manipulation"
           >
             New world
           </Link>
