@@ -33,9 +33,25 @@ export async function ArcShell({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
+  // Get user's role in the current story
+  const membership = await prisma.storyMember.findUnique({
+    where: {
+      storyId_userId: {
+        storyId: currentStory.id,
+        userId: currentUser.id,
+      },
+    },
+  });
+
+  // Create user object with story-specific role
+  const userWithStoryRole = {
+    ...currentUser,
+    role: membership?.role || currentUser.role, // Use story role if available, fallback to global role
+  };
+
   return (
     <ArcShellClient
-      currentUser={currentUser}
+      currentUser={userWithStoryRole}
       currentStory={currentStory}
       allStories={allStories}
     >

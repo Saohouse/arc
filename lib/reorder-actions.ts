@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { requireRole } from "@/lib/auth";
 
 type ReorderItem = {
   id: string;
@@ -12,6 +13,8 @@ export async function reorderCharacters(
   storyId: string,
   items: ReorderItem[]
 ) {
+  await requireRole("editor");
+  
   try {
     // Update each character's order in a transaction
     await prisma.$transaction(
@@ -32,6 +35,8 @@ export async function reorderCharacters(
 }
 
 export async function reorderWorlds(storyId: string, items: ReorderItem[]) {
+  await requireRole("editor");
+  
   try {
     await prisma.$transaction(
       items.map((item) =>
@@ -51,6 +56,8 @@ export async function reorderWorlds(storyId: string, items: ReorderItem[]) {
 }
 
 export async function reorderLocations(storyId: string, items: ReorderItem[]) {
+  await requireRole("editor");
+  
   try {
     await prisma.$transaction(
       items.map((item) =>
@@ -70,6 +77,8 @@ export async function reorderLocations(storyId: string, items: ReorderItem[]) {
 }
 
 export async function reorderObjects(storyId: string, items: ReorderItem[]) {
+  await requireRole("editor");
+  
   try {
     await prisma.$transaction(
       items.map((item) =>

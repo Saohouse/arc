@@ -69,11 +69,33 @@ export async function requireAuth() {
   return user;
 }
 
-export async function requireRole(role: "viewer" | "editor" | "admin") {
+export async function requireRole(role: "viewer" | "editor" | "admin" | "owner") {
   const user = await requireAuth();
   
-  const roleHierarchy = { viewer: 0, editor: 1, admin: 2 };
-  const userRole = roleHierarchy[user.role as keyof typeof roleHierarchy] || 0;
+  // Get current story from cookie
+  const cookieStore = await cookies();
+  const storyId = cookieStore.get("currentStoryId")?.value;
+  
+  if (!storyId) {
+    throw new Error("No story selected");
+  }
+  
+  // Get user's role in this specific story
+  const membership = await prisma.storyMember.findUnique({
+    where: {
+      storyId_userId: {
+        storyId,
+        userId: user.id,
+      },
+    },
+  });
+  
+  if (!membership) {
+    throw new Error("Not a member of this story");
+  }
+  
+  const roleHierarchy = { viewer: 0, editor: 1, admin: 2, owner: 3 };
+  const userRole = roleHierarchy[membership.role as keyof typeof roleHierarchy] || 0;
   const requiredRole = roleHierarchy[role];
 
   if (userRole < requiredRole) {

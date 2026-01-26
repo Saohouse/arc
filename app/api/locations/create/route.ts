@@ -2,9 +2,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentStory } from "@/lib/story";
 import { saveImageUpload } from "@/lib/uploads";
+import { requireRole } from "@/lib/auth";
 
 export async function POST(request: Request) {
   try {
+    // Only editors and admins can create locations
+    await requireRole("editor");
+    
     const formData = await request.formData();
     const name = String(formData.get("name") ?? "").trim();
 

@@ -20,17 +20,35 @@ export function StoryMemberRoleSelector({
   const handleRoleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newRole = e.target.value;
     
-    const formData = new FormData();
-    formData.append("storyId", storyId);
-    formData.append("userId", userId);
-    formData.append("role", newRole);
+    try {
+      const formData = new FormData();
+      formData.append("storyId", storyId);
+      formData.append("userId", userId);
+      formData.append("role", newRole);
 
-    await fetch(`/api/story/update-member-role`, {
-      method: "POST",
-      body: formData,
-    });
+      const response = await fetch(`/api/story/update-member-role`, {
+        method: "POST",
+        body: formData,
+      });
 
-    router.refresh();
+      if (!response.ok) {
+        const error = await response.json();
+        console.error("Failed to update role:", error);
+        // Revert the select to the original value
+        e.target.value = currentRole;
+        alert(error.error || "Failed to update role");
+        return;
+      }
+
+      // Wait a moment for the database to update, then refresh
+      await new Promise(resolve => setTimeout(resolve, 100));
+      router.refresh();
+    } catch (error) {
+      console.error("Error updating role:", error);
+      // Revert the select to the original value
+      e.target.value = currentRole;
+      alert("Failed to update role. Please try again.");
+    }
   };
 
   const getRoleBadgeColor = (role: string) => {
