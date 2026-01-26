@@ -107,7 +107,7 @@ export function ArcShellClient({
 
         {/* Mobile Header */}
         <div className="lg:hidden fixed top-0 left-0 right-0 z-40 glass-strong border-b border-border/50">
-          <div className="flex items-center justify-between p-4">
+          <div className="flex items-center justify-between px-4 py-3 safe-area-inset-top">
             <Link href="/" className="flex items-center gap-2">
               <span className="text-xl font-bold tracking-tight text-foreground/90">
                 ARC
@@ -115,7 +115,7 @@ export function ArcShellClient({
             </Link>
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 hover:bg-muted/50 rounded-lg transition-colors"
+              className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-manipulation"
               aria-label="Toggle menu"
             >
               {isMobileMenuOpen ? (
@@ -147,7 +147,7 @@ export function ArcShellClient({
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-10 max-w-7xl pt-20 lg:pt-10">
+        <main className="flex-1 px-4 py-4 sm:px-6 sm:py-6 lg:px-10 lg:py-10 max-w-7xl pt-20 lg:pt-10">
           {children}
         </main>
       </div>

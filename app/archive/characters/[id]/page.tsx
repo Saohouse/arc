@@ -131,56 +131,66 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="text-sm text-muted-foreground">
-            Archive / Characters
-          </div>
-          <h1 className="text-3xl font-semibold">{character.name}</h1>
-          {character.title ? (
-            <p className="text-sm text-muted-foreground">{character.title}</p>
-          ) : null}
+      {/* Header Section - Mobile Optimized */}
+      <div className="space-y-4">
+        {/* Breadcrumb */}
+        <div className="text-sm text-muted-foreground">
+          Archive / Characters
         </div>
-        <div className="flex items-center gap-3">
-          <RoleGate allowedRoles={["editor", "admin"]}>
+        
+        {/* Title and Actions */}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-semibold break-words">{character.name}</h1>
+            {character.title ? (
+              <p className="text-sm text-muted-foreground mt-1">{character.title}</p>
+            ) : null}
+          </div>
+          
+          {/* Action Buttons - Mobile Optimized */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 sm:flex-shrink-0">
+            <RoleGate allowedRoles={["editor", "admin"]}>
+              <Link
+                href={`/archive/characters/${character.id}/edit`}
+                className="rounded-lg bg-foreground px-4 sm:px-5 py-2 sm:py-2.5 text-sm font-medium text-background hover:bg-foreground/90 transition-all whitespace-nowrap"
+              >
+                Edit
+              </Link>
+              <DeleteButton
+                id={character.id}
+                name={character.name}
+                action={deleteCharacter}
+              />
+            </RoleGate>
             <Link
-              href={`/archive/characters/${character.id}/edit`}
-              className="rounded-lg bg-foreground px-5 py-2.5 text-[13px] font-medium text-background hover:bg-foreground/90 transition-all"
+              href="/archive/characters"
+              className="text-sm text-muted-foreground hover:text-foreground whitespace-nowrap"
             >
-              Edit
+              Back to list
             </Link>
-            <DeleteButton
-              id={character.id}
-              name={character.name}
-              action={deleteCharacter}
-            />
-          </RoleGate>
-          <Link
-            href="/archive/characters"
-            className="text-sm text-muted-foreground hover:text-foreground"
-          >
-            Back to list
-          </Link>
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
+      {/* Main Content - Mobile Optimized Grid */}
+      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+        {/* Portrait Section */}
         <div className="space-y-3">
           {character.imageUrl ? (
-            <div className="overflow-hidden rounded-lg border relative h-60 w-full">
+            <div className="overflow-hidden rounded-lg border relative w-full aspect-[3/4] max-h-80 lg:h-auto">
               <Image
                 src={character.imageUrl}
                 alt={character.name}
                 fill
                 className="object-cover"
-                sizes="240px"
+                sizes="(max-width: 1024px) 100vw, 280px"
                 priority
               />
             </div>
           ) : (
-            <div className={`relative h-60 w-full rounded-lg border-2 border-dashed border-purple-300 dark:border-purple-700 bg-gradient-to-br ${getCharacterGradient(character.wizardData)} flex items-center justify-center overflow-hidden`}>
+            <div className={`relative w-full aspect-[3/4] max-h-80 lg:h-auto rounded-lg border-2 border-dashed border-purple-300 dark:border-purple-700 bg-gradient-to-br ${getCharacterGradient(character.wizardData)} flex items-center justify-center overflow-hidden`}>
               <div className="absolute inset-0 bg-gradient-to-br from-transparent to-black/5 dark:to-white/5" />
-              <span className="text-[180px] leading-none relative z-10 drop-shadow-lg">{getCharacterEmoji(character.wizardData)}</span>
+              <span className="text-[120px] sm:text-[150px] lg:text-[180px] leading-none relative z-10 drop-shadow-lg">{getCharacterEmoji(character.wizardData)}</span>
             </div>
           )}
 

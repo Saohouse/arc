@@ -238,12 +238,12 @@ function CharactersList({ storyId, characters, tagColorMap }: CharactersListProp
         <div className="text-sm text-muted-foreground">
           {characters.length} {characters.length === 1 ? "character" : "characters"}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* View Mode Toggle */}
           <div className="flex items-center gap-1 border rounded-md p-1">
             <button
               onClick={() => handleViewModeChange("list")}
-              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+              className={`px-3 py-1.5 text-xs font-medium rounded transition-colors touch-manipulation ${
                 viewMode === "list" 
                   ? "bg-foreground/10 text-foreground" 
                   : "text-muted-foreground hover:text-foreground"
@@ -254,7 +254,7 @@ function CharactersList({ storyId, characters, tagColorMap }: CharactersListProp
             </button>
             <button
               onClick={() => handleViewModeChange("card")}
-              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+              className={`px-3 py-1.5 text-xs font-medium rounded transition-colors touch-manipulation ${
                 viewMode === "card" 
                   ? "bg-foreground/10 text-foreground" 
                   : "text-muted-foreground hover:text-foreground"
@@ -269,29 +269,30 @@ function CharactersList({ storyId, characters, tagColorMap }: CharactersListProp
           <div className="flex items-center gap-1 border rounded-md p-1">
             <button
               onClick={() => handleSortModeChange("custom")}
-              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+              className={`px-2 sm:px-3 py-1.5 text-xs font-medium rounded transition-colors touch-manipulation flex items-center gap-1 ${
                 sortMode === "custom" 
                   ? "bg-foreground/10 text-foreground" 
                   : "text-muted-foreground hover:text-foreground"
               }`}
-              title="Custom drag-and-drop order"
+              title="Custom order (drag to reorder)"
             >
               <ArrowUpDown className="h-3 w-3" />
+              <span className="hidden sm:inline">Custom</span>
             </button>
             <button
               onClick={() => handleSortModeChange("alphabetical")}
-              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+              className={`px-2 sm:px-3 py-1.5 text-xs font-medium rounded transition-colors touch-manipulation ${
                 sortMode === "alphabetical" 
                   ? "bg-foreground/10 text-foreground" 
                   : "text-muted-foreground hover:text-foreground"
               }`}
-              title="Sort alphabetically"
+              title="Alphabetical order"
             >
               A-Z
             </button>
             <button
               onClick={() => handleSortModeChange("date-created")}
-              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+              className={`px-2 sm:px-3 py-1.5 text-xs font-medium rounded transition-colors touch-manipulation ${
                 sortMode === "date-created" 
                   ? "bg-foreground/10 text-foreground" 
                   : "text-muted-foreground hover:text-foreground"
@@ -302,15 +303,18 @@ function CharactersList({ storyId, characters, tagColorMap }: CharactersListProp
             </button>
           </div>
 
-          {/* Compact Toggle for List View */}
-          {viewMode === "list" && (
-            <button
-              onClick={() => setIsCompact(!isCompact)}
-              className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors"
-            >
-              {isCompact ? "Show Photos" : "Hide Photos"}
-            </button>
-          )}
+          {/* Hide Photos Toggle */}
+          <button
+            onClick={() => setIsCompact(!isCompact)}
+            className={`px-3 py-1.5 text-xs font-medium border rounded-md transition-colors touch-manipulation whitespace-nowrap ${
+              isCompact
+                ? "bg-foreground/10 text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            title={isCompact ? "Show photos" : "Hide photos"}
+          >
+            Hide Photos
+          </button>
         </div>
       </div>
 
@@ -352,17 +356,22 @@ export function CharactersPageClient({
 }: CharactersPageClientProps) {
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="text-sm text-muted-foreground">
-            Archive / Characters
-          </div>
-          <h1 className="text-3xl font-semibold">👤 Characters</h1>
-          <p className="text-sm text-muted-foreground">
-            Canon profiles for the Sao House universe.
-          </p>
+      {/* Header Section - Mobile Optimized */}
+      <div className="space-y-4">
+        <div className="text-sm text-muted-foreground">
+          Archive / Characters
         </div>
-        {newCharacterButton}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="flex-1">
+            <h1 className="text-2xl sm:text-3xl font-semibold">👤 Characters</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Canon profiles for the Sao House universe.
+            </p>
+          </div>
+          <div className="flex-shrink-0">
+            {newCharacterButton}
+          </div>
+        </div>
       </div>
 
       {characters.length === 0 ? (
