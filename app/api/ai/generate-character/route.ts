@@ -102,7 +102,7 @@ Examples:
 IMPORTANT: Return a JSON object with this EXACT structure:
 {
   "name": "Character Name",
-  "bio": "A compelling 2-3 sentence bio describing the character's essence, role, and what makes them interesting",
+  "bio": "A compelling 2-3 sentence bio describing the character's essence, role, and what makes them interesting. USE THE ACTUAL CHARACTER NAME in the bio, not {{name}}.",
   "psychologyTraits": ["trait-id-1", "trait-id-2", "trait-id-3", "trait-id-4", "trait-id-5"],
   "wizardData": {
     "character_type_type": "protagonist",

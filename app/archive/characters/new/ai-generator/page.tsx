@@ -218,7 +218,7 @@ export default function AIGeneratorPage() {
               {isGenerating ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Generating Character...
+                  Generating...
                 </>
               ) : (
                 <>
@@ -235,6 +235,42 @@ export default function AIGeneratorPage() {
               Cancel
             </Link>
           </div>
+
+          {/* Progress Loader */}
+          {isGenerating && (
+            <div className="rounded-lg border bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 p-6">
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="w-5 h-5 animate-spin text-purple-600 dark:text-purple-400" />
+                  <div>
+                    <div className="font-semibold text-sm">Generating your character...</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      This may take 10-20 seconds. We're creating a fully developed character with bio, psychology traits, and detailed backstory.
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-2 text-xs text-muted-foreground pl-8">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
+                    <span>Analyzing your concept and ensemble needs...</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" style={{ animationDelay: '0.2s' }} />
+                    <span>Selecting psychology traits for depth...</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" style={{ animationDelay: '0.4s' }} />
+                    <span>Answering Frank Daniel character development questions...</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" style={{ animationDelay: '0.6s' }} />
+                    <span>Crafting compelling bio and character arc...</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Info */}
           <div className="rounded-lg border bg-muted/50 p-4">

@@ -41,6 +41,25 @@ function getCharacterEmoji(character: Character): string {
   return typeEmojis[characterType] || "⭐";
 }
 
+// Get gradient based on character type
+function getCharacterGradient(character: Character): string {
+  if (!character.wizardData) return "from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20";
+  
+  const wizardData = character.wizardData as Record<string, string>;
+  const characterType = wizardData["character_type_type"] || "other";
+  
+  const typeGradients: Record<string, string> = {
+    protagonist: "from-blue-50 via-cyan-50 to-blue-100 dark:from-blue-950/20 dark:via-cyan-950/20 dark:to-blue-950/30",
+    antagonist: "from-red-50 via-orange-50 to-red-100 dark:from-red-950/20 dark:via-orange-950/20 dark:to-red-950/30",
+    mentor: "from-purple-50 via-indigo-50 to-purple-100 dark:from-purple-950/20 dark:via-indigo-950/20 dark:to-purple-950/30",
+    support: "from-green-50 via-emerald-50 to-green-100 dark:from-green-950/20 dark:via-emerald-950/20 dark:to-green-950/30",
+    love_interest: "from-pink-50 via-rose-50 to-pink-100 dark:from-pink-950/20 dark:via-rose-950/20 dark:to-pink-950/30",
+    other: "from-amber-50 via-yellow-50 to-amber-100 dark:from-amber-950/20 dark:via-yellow-950/20 dark:to-amber-950/30"
+  };
+  
+  return typeGradients[characterType] || typeGradients.other;
+}
+
 type SortMode = "custom" | "alphabetical" | "date-created";
 
 type CharactersListProps = {
@@ -119,7 +138,7 @@ function CharactersList({ storyId, characters, tagColorMap }: CharactersListProp
                   loading="lazy"
                 />
               ) : (
-                <div className="h-20 w-20 rounded-lg border border-dashed flex items-center justify-center text-3xl flex-shrink-0 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20">
+                <div className={`h-20 w-20 rounded-lg border border-dashed flex items-center justify-center text-3xl flex-shrink-0 bg-gradient-to-br ${getCharacterGradient(character)}`}>
                   {getCharacterEmoji(character)}
                 </div>
               )}
@@ -177,7 +196,7 @@ function CharactersList({ storyId, characters, tagColorMap }: CharactersListProp
               loading="lazy"
             />
           ) : (
-            <div className="h-30 w-30 rounded-lg border border-dashed flex items-center justify-center text-5xl bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20">
+            <div className={`h-30 w-30 rounded-lg border border-dashed flex items-center justify-center text-5xl bg-gradient-to-br ${getCharacterGradient(character)}`}>
               {getCharacterEmoji(character)}
             </div>
           )}

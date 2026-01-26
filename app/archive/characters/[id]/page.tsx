@@ -28,6 +28,43 @@ type CharacterPageProps = {
 export default async function CharacterPage({ params }: CharacterPageProps) {
   const { id } = await params;
   
+  // Get emoji and gradient based on character type
+  const getCharacterEmoji = (wizardData: any): string => {
+    if (!wizardData) return "⭐";
+    
+    const data = wizardData as Record<string, string>;
+    const characterType = data["character_type_type"] || "other";
+    
+    const typeEmojis: Record<string, string> = {
+      protagonist: "🦸",
+      antagonist: "😈",
+      mentor: "🧙",
+      support: "🤝",
+      love_interest: "💖",
+      other: "⭐"
+    };
+    
+    return typeEmojis[characterType] || "⭐";
+  };
+  
+  const getCharacterGradient = (wizardData: any): string => {
+    if (!wizardData) return "from-purple-50 via-pink-50 to-indigo-50 dark:from-purple-950/30 dark:via-pink-950/30 dark:to-indigo-950/30";
+    
+    const data = wizardData as Record<string, string>;
+    const characterType = data["character_type_type"] || "other";
+    
+    const typeGradients: Record<string, string> = {
+      protagonist: "from-blue-50 via-cyan-50 to-sky-100 dark:from-blue-950/30 dark:via-cyan-950/30 dark:to-sky-950/40",
+      antagonist: "from-red-50 via-orange-50 to-rose-100 dark:from-red-950/30 dark:via-orange-950/30 dark:to-rose-950/40",
+      mentor: "from-purple-50 via-indigo-50 to-violet-100 dark:from-purple-950/30 dark:via-indigo-950/30 dark:to-violet-950/40",
+      support: "from-green-50 via-emerald-50 to-teal-100 dark:from-green-950/30 dark:via-emerald-950/30 dark:to-teal-950/40",
+      love_interest: "from-pink-50 via-rose-50 to-fuchsia-100 dark:from-pink-950/30 dark:via-rose-950/30 dark:to-fuchsia-950/40",
+      other: "from-amber-50 via-yellow-50 to-orange-100 dark:from-amber-950/30 dark:via-yellow-950/30 dark:to-orange-950/40"
+    };
+    
+    return typeGradients[characterType] || typeGradients.other;
+  };
+  
   // Fetch character and parse tags first to get tag names
   const [character, allCharacters] = await Promise.all([
     prisma.character.findUnique({
@@ -141,8 +178,9 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
               />
             </div>
           ) : (
-            <div className="flex h-60 items-center justify-center rounded-lg border border-dashed text-xs text-muted-foreground">
-              No portrait yet
+            <div className={`relative h-60 w-full rounded-lg border-2 border-dashed border-purple-300 dark:border-purple-700 bg-gradient-to-br ${getCharacterGradient(character.wizardData)} flex items-center justify-center overflow-hidden`}>
+              <div className="absolute inset-0 bg-gradient-to-br from-transparent to-black/5 dark:to-white/5" />
+              <span className="text-[180px] leading-none relative z-10 drop-shadow-lg">{getCharacterEmoji(character.wizardData)}</span>
             </div>
           )}
 
