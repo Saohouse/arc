@@ -44,9 +44,7 @@ function LocationsList({ storyId, locations, tagColorMap }: LocationsListProps) 
   const [isCompact, setIsCompact] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("custom");
   const [mounted, setMounted] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
-    new Set(["country", "province", "city", "town", "standalone"])
-  );
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
 
   // Load sort mode from localStorage after hydration
   useEffect(() => {
@@ -55,33 +53,40 @@ function LocationsList({ storyId, locations, tagColorMap }: LocationsListProps) 
     if (saved === "alphabetical" || saved === "date-created") {
       setSortMode(saved);
     }
-  }, []);
+    // Auto-expand all nodes initially
+    const allIds = locations.map(l => l.id);
+    setExpandedNodes(new Set(allIds));
+  }, [locations]);
 
   const handleSortModeChange = (mode: SortMode) => {
     setSortMode(mode);
     localStorage.setItem("locations-sort-mode", mode);
   };
 
-  const toggleGroup = (groupKey: string) => {
-    const newExpanded = new Set(expandedGroups);
-    if (newExpanded.has(groupKey)) {
-      newExpanded.delete(groupKey);
+  const toggleNode = (locationId: string) => {
+    const newExpanded = new Set(expandedNodes);
+    if (newExpanded.has(locationId)) {
+      newExpanded.delete(locationId);
     } else {
-      newExpanded.add(groupKey);
+      newExpanded.add(locationId);
     }
-    setExpandedGroups(newExpanded);
+    setExpandedNodes(newExpanded);
   };
 
-  // Group locations by type
-  const groupedLocations = useMemo(() => {
-    const groups = {
-      country: locations.filter((l) => l.locationType === "country"),
-      province: locations.filter((l) => l.locationType === "province"),
-      city: locations.filter((l) => l.locationType === "city"),
-      town: locations.filter((l) => l.locationType === "town"),
-      standalone: locations.filter((l) => !l.locationType),
+  // Build tree structure: organize locations into parent-child hierarchy
+  const locationTree = useMemo(() => {
+    // Create a map for quick lookup
+    const locationMap = new Map(locations.map((loc) => [loc.id, loc]));
+    
+    // Find root locations (no parent)
+    const roots = locations.filter((loc) => !loc.parentLocationId);
+    
+    // Build children arrays
+    const getChildren = (parentId: string): Location[] => {
+      return locations.filter((loc) => loc.parentLocationId === parentId);
     };
-    return groups;
+    
+    return { roots, getChildren, locationMap };
   }, [locations]);
 
   // Check if location hierarchy is enabled (migration has been run)
@@ -107,154 +112,122 @@ function LocationsList({ storyId, locations, tagColorMap }: LocationsListProps) 
     );
   };
 
-  // Build breadcrumb path for a location
-  const getBreadcrumb = (location: Location): string => {
-    const parts: string[] = [];
-    let current = location;
-    
-    // Build path by traversing up through parents
-    if (current.parent) {
-      const parentLoc = locations.find((l) => l.id === current.parentLocationId);
-      if (parentLoc) {
-        // Recursively build parent path
-        const parentPath = getBreadcrumb(parentLoc);
-        if (parentPath) parts.push(parentPath);
-      }
+  // Get icon for location type
+  const getLocationIcon = (locationType: string | null | undefined): string => {
+    switch (locationType) {
+      case "country": return "🌍";
+      case "province": return "🏛️";
+      case "city": return "🏙️";
+      case "town": return "🏘️";
+      default: return "📍";
     }
-    
-    return parts.join(" > ");
   };
 
-  const renderLocation = (location: Location, showBreadcrumb = true) => {
-    const breadcrumb = showBreadcrumb ? getBreadcrumb(location) : "";
+  // Render a location node in the tree
+  const renderLocationNode = (location: Location, depth: number = 0): React.ReactNode => {
+    const children = locationTree.getChildren(location.id);
+    const hasChildren = children.length > 0;
+    const isExpanded = expandedNodes.has(location.id);
+    const icon = getLocationIcon(location.locationType);
     
     return (
-      <Link
-        href={`/archive/locations/${location.id}`}
-        className={`block rounded-lg border transition hover:border-foreground/30 hover:bg-muted/50 ${
-          isCompact ? "p-3" : "p-4"
-        }`}
-      >
-        <div className={`flex items-start gap-4 ${isCompact ? "items-center" : ""}`}>
+      <div key={location.id} className="space-y-1">
+        <div 
+          className="flex items-start gap-2 rounded-lg border transition hover:border-foreground/30 hover:bg-muted/50 p-3"
+          style={{ marginLeft: `${depth * 24}px` }}
+        >
+          {/* Expand/Collapse Button */}
+          {hasChildren ? (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                toggleNode(location.id);
+              }}
+              className="flex-shrink-0 w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {isExpanded ? "▼" : "▶"}
+            </button>
+          ) : (
+            <div className="w-6" />
+          )}
+
+          {/* Location Icon */}
+          <span className="text-lg flex-shrink-0">{icon}</span>
+
+          {/* Location Image (if not compact) */}
           {!isCompact && (
             <>
               {location.imageUrl ? (
                 <Image
                   src={location.imageUrl}
                   alt={location.name}
-                  width={80}
-                  height={80}
-                  className="h-20 w-20 rounded-lg object-cover flex-shrink-0"
+                  width={48}
+                  height={48}
+                  className="h-12 w-12 rounded-lg object-cover flex-shrink-0"
                   loading="lazy"
                 />
-              ) : (
-                <div className="h-20 w-20 rounded-lg border border-dashed flex items-center justify-center text-2xl flex-shrink-0">
-                  📍
-                </div>
-              )}
+              ) : null}
             </>
           )}
-          <div className="flex-1 min-w-0">
+
+          {/* Location Details */}
+          <Link
+            href={`/archive/locations/${location.id}`}
+            className="flex-1 min-w-0"
+          >
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
+              <div className="flex-1 min-w-0">
                 <div className={`font-semibold ${isCompact ? "text-sm" : "text-base"}`}>
                   {location.name}
                 </div>
-                {breadcrumb && (
-                  <div className="text-xs text-muted-foreground/70 mt-0.5">
-                    {breadcrumb}
-                  </div>
-                )}
                 {location.summary ? (
-                  <div className="text-sm text-muted-foreground">
+                  <div className="text-sm text-muted-foreground truncate">
                     {location.summary}
                   </div>
                 ) : null}
+                {location.tags && !isCompact && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {parseTagsString(location.tags).map((tag) => (
+                      <Tag 
+                        key={`${location.id}-${tag}`} 
+                        name={tag}
+                        size="sm"
+                        customColor={tagColorMap.get(tag)}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
-              <div className="text-xs text-muted-foreground">
+              <div className="text-xs text-muted-foreground flex-shrink-0">
                 Updated {location.updatedAt.toLocaleDateString()}
               </div>
             </div>
-            {location.tags && !isCompact && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {parseTagsString(location.tags).map((tag) => (
-                  <Tag 
-                    key={`${location.id}-${tag}`} 
-                    name={tag}
-                    customColor={tagColorMap.get(tag)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+          </Link>
         </div>
-      </Link>
-    );
-  };
 
-  const renderGroupHeader = (
-    title: string,
-    icon: string,
-    count: number,
-    groupKey: string
-  ) => {
-    const isExpanded = expandedGroups.has(groupKey);
-    return (
-      <button
-        onClick={() => toggleGroup(groupKey)}
-        className="flex items-center justify-between w-full px-4 py-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-left"
-      >
-        <div className="flex items-center gap-3">
-          <span className="text-xl">{icon}</span>
-          <div>
-            <span className="font-semibold">{title}</span>
-            <span className="text-sm text-muted-foreground ml-2">({count})</span>
-          </div>
-        </div>
-        <span className="text-muted-foreground">
-          {isExpanded ? "−" : "+"}
-        </span>
-      </button>
-    );
-  };
-
-  const renderGroup = (
-    locations: Location[],
-    groupTitle: string,
-    groupIcon: string,
-    groupKey: string
-  ) => {
-    if (locations.length === 0) return null;
-    const isExpanded = expandedGroups.has(groupKey);
-
-    // Sort locations within group based on sortMode
-    const sorted = [...locations];
-    switch (sortMode) {
-      case "alphabetical":
-        sorted.sort((a, b) => a.name.localeCompare(b.name));
-        break;
-      case "date-created":
-        sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        break;
-      case "custom":
-      default:
-        sorted.sort((a, b) => a.order - b.order);
-        break;
-    }
-
-    return (
-      <div key={groupKey} className="space-y-3">
-        {renderGroupHeader(groupTitle, groupIcon, locations.length, groupKey)}
-        {isExpanded && (
-          <div className="ml-4 space-y-2">
-            {sorted.map((location) => (
-              <div key={location.id}>{renderLocation(location)}</div>
-            ))}
+        {/* Render Children */}
+        {hasChildren && isExpanded && (
+          <div className="space-y-1">
+            {children.map((child) => renderLocationNode(child, depth + 1))}
           </div>
         )}
       </div>
     );
   };
+
+  // Sort root locations
+  const sortedRoots = useMemo(() => {
+    const sorted = [...locationTree.roots];
+    switch (sortMode) {
+      case "alphabetical":
+        return sorted.sort((a, b) => a.name.localeCompare(b.name));
+      case "date-created":
+        return sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      case "custom":
+      default:
+        return sorted.sort((a, b) => a.order - b.order);
+    }
+  }, [locationTree.roots, sortMode]);
 
   return (
     <>
@@ -308,12 +281,14 @@ function LocationsList({ storyId, locations, tagColorMap }: LocationsListProps) 
       </div>
 
       {hierarchyEnabled ? (
-        <div className="space-y-4">
-          {renderGroup(groupedLocations.country, "Countries", "🌍", "country")}
-          {renderGroup(groupedLocations.province, "Provinces", "🏛️", "province")}
-          {renderGroup(groupedLocations.city, "Cities", "🏙️", "city")}
-          {renderGroup(groupedLocations.town, "Towns", "🏘️", "town")}
-          {renderGroup(groupedLocations.standalone, "Other Locations", "📍", "standalone")}
+        <div className="space-y-2">
+          {sortedRoots.length > 0 ? (
+            sortedRoots.map((location) => renderLocationNode(location, 0))
+          ) : (
+            <div className="text-sm text-muted-foreground text-center py-8">
+              No locations found.
+            </div>
+          )}
         </div>
       ) : (
         /* Fallback to flat list if migration hasn't been run */
@@ -321,12 +296,49 @@ function LocationsList({ storyId, locations, tagColorMap }: LocationsListProps) 
           <SortableList
             items={sortedLocations}
             onReorder={handleReorder}
-            renderItem={(loc) => renderLocation(loc, false)}
+            renderItem={(loc) => (
+              <Link
+                href={`/archive/locations/${loc.id}`}
+                className={`block rounded-lg border transition hover:border-foreground/30 hover:bg-muted/50 ${
+                  isCompact ? "p-3" : "p-4"
+                }`}
+              >
+                <div className={`flex items-start gap-4 ${isCompact ? "items-center" : ""}`}>
+                  {!isCompact && loc.imageUrl && (
+                    <Image
+                      src={loc.imageUrl}
+                      alt={loc.name}
+                      width={80}
+                      height={80}
+                      className="h-20 w-20 rounded-lg object-cover flex-shrink-0"
+                      loading="lazy"
+                    />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className={`font-semibold ${isCompact ? "text-sm" : "text-base"}`}>
+                      {loc.name}
+                    </div>
+                    {loc.summary && (
+                      <div className="text-sm text-muted-foreground">{loc.summary}</div>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            )}
           />
         ) : (
           <div className="grid gap-3">
             {sortedLocations.map((location) => (
-              <div key={location.id}>{renderLocation(location, false)}</div>
+              <Link
+                key={location.id}
+                href={`/archive/locations/${location.id}`}
+                className="block rounded-lg border transition hover:border-foreground/30 hover:bg-muted/50 p-4"
+              >
+                <div className="font-semibold">{location.name}</div>
+                {location.summary && (
+                  <div className="text-sm text-muted-foreground">{location.summary}</div>
+                )}
+              </Link>
             ))}
           </div>
         )

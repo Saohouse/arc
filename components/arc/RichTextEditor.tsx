@@ -11,12 +11,62 @@ interface RichTextEditorProps {
   placeholder?: string;
 }
 
+// Convert plain text to HTML with proper paragraphs
+function formatPlainTextToHTML(text: string): string {
+  if (!text) return "";
+  
+  // Check if content already has HTML tags
+  const hasHTMLTags = /<[a-z][\s\S]*>/i.test(text);
+  if (hasHTMLTags) {
+    return text; // Already formatted, return as-is
+  }
+  
+  let processedText = text;
+  
+  // Step 1: Detect ALL CAPS sections that look like headers (e.g., "HISTORICAL OVERVIEW")
+  // Add double line breaks before them
+  processedText = processedText.replace(/([.!?])\s+([A-Z][A-Z\s]{3,}[A-Z])\s+([A-Z])/g, '$1\n\n<h2>$2</h2>\n\n$3');
+  
+  // Step 2: If no double line breaks exist, intelligently split long text
+  if (!processedText.includes('\n\n')) {
+    // Split at sentence boundaries followed by capital letters (new paragraph indicators)
+    // Look for: ". Capital" or "! Capital" or "? Capital"
+    processedText = processedText.replace(/([.!?])\s+([A-Z][a-z])/g, '$1\n\n$2');
+  }
+  
+  // Step 3: Split by double line breaks (paragraph breaks)
+  const paragraphs = processedText.split(/\n\n+/);
+  
+  // Step 4: Wrap each paragraph in appropriate tags
+  const html = paragraphs
+    .map(para => {
+      const trimmed = para.trim();
+      if (!trimmed) return "";
+      
+      // Check if it's already a heading tag
+      if (trimmed.startsWith('<h2>')) {
+        return trimmed;
+      }
+      
+      // Replace single line breaks with <br>
+      const withBreaks = trimmed.replace(/\n/g, "<br>");
+      return `<p>${withBreaks}</p>`;
+    })
+    .filter(Boolean)
+    .join("");
+  
+  return html || `<p>${text}</p>`;
+}
+
 export function RichTextEditor({
   content,
   onChange,
   placeholder = "Write something amazing...",
 }: RichTextEditorProps) {
+  const formattedContent = formatPlainTextToHTML(content);
+  
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({
         heading: {
@@ -27,7 +77,7 @@ export function RichTextEditor({
         placeholder,
       }),
     ],
-    content,
+    content: formattedContent,
     editorProps: {
       attributes: {
         class:
@@ -42,7 +92,8 @@ export function RichTextEditor({
   // Update content when prop changes
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content);
+      const newFormattedContent = formatPlainTextToHTML(content);
+      editor.commands.setContent(newFormattedContent);
     }
   }, [content, editor]);
 
@@ -100,7 +151,26 @@ export function RichTextEditor({
         {/* Headings */}
         <button
           type="button"
-          onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+          onClick={() => {
+            const { from, to } = editor.state.selection;
+            const hasSelection = from !== to;
+            
+            if (hasSelection) {
+              // Get selected text
+              const selectedText = editor.state.doc.textBetween(from, to);
+              
+              // Delete selection and insert heading
+              editor
+                .chain()
+                .focus()
+                .deleteSelection()
+                .insertContent(`<h1>${selectedText}</h1>`)
+                .run();
+            } else {
+              // Just toggle the current block
+              editor.chain().focus().toggleHeading({ level: 1 }).run();
+            }
+          }}
           className={`px-3 py-1.5 rounded text-sm font-bold transition-colors ${
             editor.isActive("heading", { level: 1 })
               ? "bg-foreground text-background"
@@ -112,7 +182,22 @@ export function RichTextEditor({
         </button>
         <button
           type="button"
-          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+          onClick={() => {
+            const { from, to } = editor.state.selection;
+            const hasSelection = from !== to;
+            
+            if (hasSelection) {
+              const selectedText = editor.state.doc.textBetween(from, to);
+              editor
+                .chain()
+                .focus()
+                .deleteSelection()
+                .insertContent(`<h2>${selectedText}</h2>`)
+                .run();
+            } else {
+              editor.chain().focus().toggleHeading({ level: 2 }).run();
+            }
+          }}
           className={`px-3 py-1.5 rounded text-sm font-bold transition-colors ${
             editor.isActive("heading", { level: 2 })
               ? "bg-foreground text-background"
@@ -124,7 +209,22 @@ export function RichTextEditor({
         </button>
         <button
           type="button"
-          onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+          onClick={() => {
+            const { from, to } = editor.state.selection;
+            const hasSelection = from !== to;
+            
+            if (hasSelection) {
+              const selectedText = editor.state.doc.textBetween(from, to);
+              editor
+                .chain()
+                .focus()
+                .deleteSelection()
+                .insertContent(`<h3>${selectedText}</h3>`)
+                .run();
+            } else {
+              editor.chain().focus().toggleHeading({ level: 3 }).run();
+            }
+          }}
           className={`px-3 py-1.5 rounded text-sm font-bold transition-colors ${
             editor.isActive("heading", { level: 3 })
               ? "bg-foreground text-background"
