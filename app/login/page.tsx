@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword, createSession, setSessionCookie, getCurrentUser } from "@/lib/auth";
+import { setCurrentStory } from "@/lib/story";
 import { LoginForm } from "@/components/arc/LoginForm";
 
 async function login(prevState: any, formData: FormData) {
@@ -25,6 +26,22 @@ async function login(prevState: any, formData: FormData) {
 
   const token = await createSession(user.id);
   await setSessionCookie(token);
+
+  // Set the first story the user has access to as current
+  const firstStory = await prisma.story.findFirst({
+    where: {
+      members: {
+        some: {
+          userId: user.id,
+        },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (firstStory) {
+    await setCurrentStory(firstStory.id);
+  }
 
   redirect("/");
 }
