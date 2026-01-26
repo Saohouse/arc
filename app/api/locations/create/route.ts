@@ -36,6 +36,9 @@ export async function POST(request: Request) {
 
     const locationType = String(formData.get("locationType") ?? "").trim() || null;
     const parentLocationId = String(formData.get("parentLocationId") ?? "").trim() || null;
+    
+    const iconType = String(formData.get("iconType") ?? "emoji");
+    const iconData = String(formData.get("iconData") ?? "📍");
 
     const imageFile = formData.get("image");
     const imageUrl =
@@ -51,8 +54,12 @@ export async function POST(request: Request) {
         imageUrl,
         tags,
         locationType,
-        parentLocationId,
-        storyId: currentStory.id,
+        ...(parentLocationId && {
+          parent: { connect: { id: parentLocationId } }
+        }),
+        iconType,
+        iconData,
+        story: { connect: { id: currentStory.id } },
       },
     });
 

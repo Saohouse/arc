@@ -61,7 +61,10 @@ async function updateLocation(formData: FormData) {
       overview: overview || null,
       tags,
       locationType,
-      parentLocationId,
+      ...(parentLocationId
+        ? { parent: { connect: { id: parentLocationId } } }
+        : { parent: { disconnect: true } }
+      ),
       iconType,
       iconData,
     },

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireStory } from "@/lib/story";
-import { InteractiveMap } from "@/components/arc/InteractiveMap";
+import { ProceduralMap } from "@/components/arc/ProceduralMap";
 
 const MAP_WIDTH = 1000;
 const MAP_HEIGHT = 600;
@@ -20,6 +20,7 @@ type MapNode = {
   iconType: string;
   iconData: string | null;
   locationType: string | null;
+  parentLocationId: string | null;
 };
 
 type MapLink = {
@@ -42,32 +43,156 @@ function buildMapNodes(locations: Array<{
   iconType: string;
   iconData: string | null;
   locationType: string | null;
+  parentLocationId: string | null;
 }>) {
-  const count = locations.length;
-  const radius = Math.min(MAP_WIDTH, MAP_HEIGHT) * 0.33;
   const centerX = MAP_WIDTH / 2;
   const centerY = MAP_HEIGHT / 2;
+  const positionedNodes = new Map<string, MapNode>();
 
-  return locations.map((location, index) => {
-    const seed = hashString(location.name);
-    const angle =
-      (index / Math.max(count, 1)) * Math.PI * 2 + ((seed % 360) / 360) * 0.35;
-    const radialJitter = ((seed % 100) / 100 - 0.5) * 0.2;
-    const r = radius * (1 + radialJitter);
-    const x = centerX + Math.cos(angle) * r;
-    const y = centerY + Math.sin(angle) * r;
+  // Organize by type
+  const countries = locations.filter((l) => l.locationType === "country");
+  const provinces = locations.filter((l) => l.locationType === "province");
+  const cities = locations.filter((l) => l.locationType === "city");
+  const towns = locations.filter((l) => l.locationType === "town");
+  const standalone = locations.filter((l) => !l.locationType);
 
-    return {
-      id: location.id,
-      name: location.name,
+  // Position countries in a circle
+  const countryRadius = Math.min(MAP_WIDTH, MAP_HEIGHT) * 0.35;
+  countries.forEach((country, index) => {
+    const seed = hashString(country.name);
+    const angle = (index / Math.max(countries.length, 1)) * Math.PI * 2;
+    const jitter = ((seed % 100) / 100 - 0.5) * 0.2;
+    const r = countryRadius * (1 + jitter);
+    
+    positionedNodes.set(country.id, {
+      id: country.id,
+      name: country.name,
+      x: centerX + Math.cos(angle) * r,
+      y: centerY + Math.sin(angle) * r,
+      residents: country.residents,
+      iconType: country.iconType,
+      iconData: country.iconData,
+      locationType: country.locationType,
+      parentLocationId: country.parentLocationId,
+    });
+  });
+
+  // Position provinces within or near their parent countries
+  provinces.forEach((province, index) => {
+    let x, y;
+    const seed = hashString(province.name);
+    
+    if (province.parentLocationId && positionedNodes.has(province.parentLocationId)) {
+      const parent = positionedNodes.get(province.parentLocationId)!;
+      // Position around parent
+      const angle = ((seed % 360) / 360) * Math.PI * 2;
+      const distance = 100 + (seed % 50);
+      x = parent.x + Math.cos(angle) * distance;
+      y = parent.y + Math.sin(angle) * distance;
+    } else {
+      // No parent, position in smaller circle
+      const radius = Math.min(MAP_WIDTH, MAP_HEIGHT) * 0.25;
+      const angle = (index / Math.max(provinces.length, 1)) * Math.PI * 2;
+      x = centerX + Math.cos(angle) * radius;
+      y = centerY + Math.sin(angle) * radius;
+    }
+    
+    positionedNodes.set(province.id, {
+      id: province.id,
+      name: province.name,
       x,
       y,
+      residents: province.residents,
+      iconType: province.iconType,
+      iconData: province.iconData,
+      locationType: province.locationType,
+      parentLocationId: province.parentLocationId,
+    });
+  });
+
+  // Position cities within provinces
+  cities.forEach((city, index) => {
+    let x, y;
+    const seed = hashString(city.name);
+    
+    if (city.parentLocationId && positionedNodes.has(city.parentLocationId)) {
+      const parent = positionedNodes.get(city.parentLocationId)!;
+      const angle = ((seed % 360) / 360) * Math.PI * 2;
+      const distance = 40 + (seed % 30);
+      x = parent.x + Math.cos(angle) * distance;
+      y = parent.y + Math.sin(angle) * distance;
+    } else {
+      const radius = Math.min(MAP_WIDTH, MAP_HEIGHT) * 0.2;
+      const angle = (index / Math.max(cities.length, 1)) * Math.PI * 2;
+      x = centerX + Math.cos(angle) * radius;
+      y = centerY + Math.sin(angle) * radius;
+    }
+    
+    positionedNodes.set(city.id, {
+      id: city.id,
+      name: city.name,
+      x,
+      y,
+      residents: city.residents,
+      iconType: city.iconType,
+      iconData: city.iconData,
+      locationType: city.locationType,
+      parentLocationId: city.parentLocationId,
+    });
+  });
+
+  // Position towns within cities
+  towns.forEach((town, index) => {
+    let x, y;
+    const seed = hashString(town.name);
+    
+    if (town.parentLocationId && positionedNodes.has(town.parentLocationId)) {
+      const parent = positionedNodes.get(town.parentLocationId)!;
+      const angle = ((seed % 360) / 360) * Math.PI * 2;
+      const distance = 20 + (seed % 20);
+      x = parent.x + Math.cos(angle) * distance;
+      y = parent.y + Math.sin(angle) * distance;
+    } else {
+      const radius = Math.min(MAP_WIDTH, MAP_HEIGHT) * 0.15;
+      const angle = (index / Math.max(towns.length, 1)) * Math.PI * 2;
+      x = centerX + Math.cos(angle) * radius;
+      y = centerY + Math.sin(angle) * radius;
+    }
+    
+    positionedNodes.set(town.id, {
+      id: town.id,
+      name: town.name,
+      x,
+      y,
+      residents: town.residents,
+      iconType: town.iconType,
+      iconData: town.iconData,
+      locationType: town.locationType,
+      parentLocationId: town.parentLocationId,
+    });
+  });
+
+  // Position standalone locations
+  standalone.forEach((location, index) => {
+    const seed = hashString(location.name);
+    const radius = Math.min(MAP_WIDTH, MAP_HEIGHT) * 0.3;
+    const angle = (index / Math.max(standalone.length, 1)) * Math.PI * 2;
+    const jitter = ((seed % 100) / 100 - 0.5) * 0.15;
+    
+    positionedNodes.set(location.id, {
+      id: location.id,
+      name: location.name,
+      x: centerX + Math.cos(angle) * radius * (1 + jitter),
+      y: centerY + Math.sin(angle) * radius * (1 + jitter),
       residents: location.residents,
       iconType: location.iconType,
       iconData: location.iconData,
       locationType: location.locationType,
-    };
+      parentLocationId: location.parentLocationId,
+    });
   });
+
+  return Array.from(positionedNodes.values());
 }
 
 function buildMapLinks(nodes: MapNode[]) {
@@ -92,8 +217,18 @@ export default async function MapPage() {
   const locations = await prisma.location.findMany({
     where: { storyId: currentStory.id },
     orderBy: { name: "asc" },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      locationType: true,
+      parentLocationId: true,
+      iconType: true,
+      iconData: true,
       residents: {
+        select: {
+          id: true,
+          name: true,
+        },
         orderBy: { name: "asc" },
       },
     },
@@ -109,7 +244,7 @@ export default async function MapPage() {
           <div className="text-sm text-muted-foreground">Atlas / Map</div>
           <h1 className="text-3xl font-semibold">🗺️ World Map</h1>
           <p className="text-sm text-muted-foreground">
-            {currentStory.name} - Auto-generated layout for locations and their resident characters.
+            {currentStory.name} - Procedural hierarchical map with regions and roads.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -134,8 +269,8 @@ export default async function MapPage() {
         </div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-          <div className="rounded-lg border bg-background p-4">
-            <InteractiveMap nodes={nodes} links={links} />
+          <div className="rounded-lg bg-background p-4">
+            <ProceduralMap nodes={nodes} links={links} />
           </div>
 
           <div className="space-y-4">

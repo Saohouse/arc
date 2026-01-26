@@ -45,10 +45,12 @@ async function createLocation(formData: FormData) {
       imageUrl,
       tags,
       locationType,
-      parentLocationId,
+      ...(parentLocationId && {
+        parent: { connect: { id: parentLocationId } }
+      }),
       iconType,
       iconData,
-      storyId: currentStory.id,
+      story: { connect: { id: currentStory.id } },
     },
   });
 
