@@ -48,6 +48,12 @@ export async function getCurrentStory() {
     orderBy: { createdAt: "asc" },
   });
   
+  if (story) {
+    // Auto-set this story as current if none was selected
+    console.log("📌 Auto-selecting first story:", story.name);
+    await setCurrentStory(story.id);
+  }
+  
   console.log("📊 First story result:", story?.name || "NULL");
   return story; // Can be null if no stories exist or user has no access
 }
