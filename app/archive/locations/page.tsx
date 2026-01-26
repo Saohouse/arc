@@ -17,23 +17,22 @@ export default async function LocationsPage() {
         imageUrl: true,
         tags: true,
         order: true,
-        // TODO: Uncomment after running migration
-        // locationType: true,
-        // parentLocationId: true,
-        // parent: {
-        //   select: {
-        //     id: true,
-        //     name: true,
-        //     locationType: true,
-        //   },
-        // },
-        // children: {
-        //   select: {
-        //     id: true,
-        //     name: true,
-        //     locationType: true,
-        //   },
-        // },
+        locationType: true,
+        parentLocationId: true,
+        parent: {
+          select: {
+            id: true,
+            name: true,
+            locationType: true,
+          },
+        },
+        children: {
+          select: {
+            id: true,
+            name: true,
+            locationType: true,
+          },
+        },
         createdAt: true,
         updatedAt: true,
       },
