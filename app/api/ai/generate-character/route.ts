@@ -160,7 +160,7 @@ Generate a fully developed character following the Frank Daniel Method. Provide 
     const generatedCharacter = JSON.parse(result);
 
     // If autoCreate is enabled, create the character in the database
-    let characterId = null;
+    let characterId: string | null = null;
     if (autoCreate) {
       // Get the highest order value
       const maxOrder = await prisma.character.findFirst({
