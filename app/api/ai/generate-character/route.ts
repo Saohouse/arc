@@ -6,14 +6,15 @@ import { prisma } from "@/lib/prisma";
 import { FRANK_DANIEL_SECTIONS } from "@/lib/frank-daniel-questions";
 import { PSYCHOLOGY_TRAITS, getTraitById } from "@/lib/psychology-traits";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 export async function POST(request: NextRequest) {
   try {
     await requireRole("editor");
     const currentStory = await requireStory();
+
+    // Initialize OpenAI client at runtime (not build time)
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
 
     const body = await request.json();
     const { concept, characterName, ensembleGoal, analyzeCast, autoCreate } = body;
