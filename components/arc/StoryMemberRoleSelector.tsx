@@ -46,7 +46,7 @@ export function StoryMemberRoleSelector({
     // Show as badge for owners or disabled state
     return (
       <span
-        className={`inline-block rounded px-3 py-1 text-xs font-medium uppercase ${getRoleBadgeColor(
+        className={`inline-block rounded px-2.5 sm:px-3 py-1 text-xs font-medium uppercase whitespace-nowrap ${getRoleBadgeColor(
           currentRole
         )}`}
       >
@@ -59,7 +59,7 @@ export function StoryMemberRoleSelector({
     <select
       value={currentRole}
       onChange={handleRoleChange}
-      className={`rounded px-3 py-1 text-xs font-medium uppercase border-0 cursor-pointer ${getRoleBadgeColor(
+      className={`rounded px-2.5 sm:px-3 py-1 text-xs font-medium uppercase border-0 cursor-pointer whitespace-nowrap touch-manipulation ${getRoleBadgeColor(
         currentRole
       )}`}
     >

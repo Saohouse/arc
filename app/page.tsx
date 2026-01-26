@@ -226,72 +226,72 @@ export default async function HomePage() {
   };
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-8 sm:space-y-12">
       {/* Hero section */}
-      <div className="space-y-3">
-        <h1 className="text-5xl font-semibold tracking-tight">
+      <div className="space-y-2 sm:space-y-3">
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight">
           Archive · Relationships · Continuity
         </h1>
-        <p className="text-base text-muted-foreground tracking-tight">
+        <p className="text-sm sm:text-base text-muted-foreground tracking-tight">
           Visual world-building and canon system for the {currentStory.name} universe
         </p>
       </div>
 
       {/* Stats cards */}
-      <div className="grid gap-6 md:grid-cols-4">
+      <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-4">
         <Link
           href="/archive/characters"
-          className="card-enhanced group p-10"
+          className="card-enhanced group aspect-square p-6 flex flex-col items-center justify-center text-center"
         >
-          <div className="text-5xl font-bold tracking-tight bg-gradient-to-br from-blue-600 to-blue-400 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent">
+          <div className="text-4xl sm:text-5xl font-bold tracking-tight bg-gradient-to-br from-blue-600 to-blue-400 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent">
             {totalCharacters}
           </div>
-          <div className="text-[11px] uppercase tracking-[0.15em] text-muted-foreground mt-3 font-semibold">
+          <div className="text-[10px] sm:text-[11px] uppercase tracking-[0.15em] text-muted-foreground mt-3 font-semibold">
             👤 {totalCharacters === 1 ? "Character" : "Characters"}
           </div>
         </Link>
 
         <Link
           href="/archive/worlds"
-          className="card-enhanced group p-10"
+          className="card-enhanced group aspect-square p-6 flex flex-col items-center justify-center text-center"
         >
-          <div className="text-5xl font-bold tracking-tight bg-gradient-to-br from-purple-600 to-purple-400 dark:from-purple-400 dark:to-purple-600 bg-clip-text text-transparent">
+          <div className="text-4xl sm:text-5xl font-bold tracking-tight bg-gradient-to-br from-purple-600 to-purple-400 dark:from-purple-400 dark:to-purple-600 bg-clip-text text-transparent">
             {totalWorlds}
           </div>
-          <div className="text-[11px] uppercase tracking-[0.15em] text-muted-foreground mt-3 font-semibold">
+          <div className="text-[10px] sm:text-[11px] uppercase tracking-[0.15em] text-muted-foreground mt-3 font-semibold">
             🌍 {totalWorlds === 1 ? "World" : "Worlds"}
           </div>
         </Link>
 
         <Link
           href="/archive/locations"
-          className="card-enhanced group p-10"
+          className="card-enhanced group aspect-square p-6 flex flex-col items-center justify-center text-center"
         >
-          <div className="text-5xl font-bold tracking-tight bg-gradient-to-br from-emerald-600 to-emerald-400 dark:from-emerald-400 dark:to-emerald-600 bg-clip-text text-transparent">
+          <div className="text-4xl sm:text-5xl font-bold tracking-tight bg-gradient-to-br from-emerald-600 to-emerald-400 dark:from-emerald-400 dark:to-emerald-600 bg-clip-text text-transparent">
             {totalLocations}
           </div>
-          <div className="text-[11px] uppercase tracking-[0.15em] text-muted-foreground mt-3 font-semibold">
+          <div className="text-[10px] sm:text-[11px] uppercase tracking-[0.15em] text-muted-foreground mt-3 font-semibold">
             📍 {totalLocations === 1 ? "Location" : "Locations"}
           </div>
         </Link>
 
         <Link
           href="/archive/objects"
-          className="card-enhanced group p-10"
+          className="card-enhanced group aspect-square p-6 flex flex-col items-center justify-center text-center"
         >
-          <div className="text-5xl font-bold tracking-tight bg-gradient-to-br from-amber-600 to-amber-400 dark:from-amber-400 dark:to-amber-600 bg-clip-text text-transparent">
+          <div className="text-4xl sm:text-5xl font-bold tracking-tight bg-gradient-to-br from-amber-600 to-amber-400 dark:from-amber-400 dark:to-amber-600 bg-clip-text text-transparent">
             {totalObjects}
           </div>
-          <div className="text-[11px] uppercase tracking-[0.15em] text-muted-foreground mt-3 font-semibold">
+          <div className="text-[10px] sm:text-[11px] uppercase tracking-[0.15em] text-muted-foreground mt-3 font-semibold">
             🔮 {totalObjects === 1 ? "Object" : "Objects"}
           </div>
         </Link>
       </div>
 
       {/* Activity timeline */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-semibold tracking-tight">Recent Activity</h2>
+      <div className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">Recent Activity</h2>
           <Link
             href="/archive"
             className="text-[11px] uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
