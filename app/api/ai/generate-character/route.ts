@@ -26,7 +26,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch existing characters if cast analysis is enabled
-    let castAnalysis = null;
+    let castAnalysis: {
+      totalCharacters: number;
+      characterTypes: Record<string, number>;
+      psychologyTraits: Record<string, number>;
+      missingTypes: string[];
+    } | null = null;
     let existingCharacters: any[] = [];
 
     if (analyzeCast) {
