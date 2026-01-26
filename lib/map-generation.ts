@@ -7,21 +7,26 @@ export type Point = { x: number; y: number };
 
 /**
  * Generate a random organic shape (polygon) around a center point
+ * Creates irregular, country-like borders (not circular)
  */
 export function generateOrganicShape(
   centerX: number,
   centerY: number,
   baseRadius: number,
   sides: number = 8,
-  randomness: number = 0.3
+  randomness: number = 0.3,
+  seed: number = 0
 ): Point[] {
   const points: Point[] = [];
   const angleStep = (Math.PI * 2) / sides;
 
   for (let i = 0; i < sides; i++) {
-    const angle = angleStep * i;
-    // Add randomness to radius for organic look
-    const radiusVariation = 1 + (Math.random() - 0.5) * randomness;
+    // Add randomness to BOTH angle and radius for irregular shapes
+    const angleVariation = (seededRandom(seed + i * 100) - 0.5) * randomness * 0.8;
+    const angle = angleStep * i + angleVariation;
+    
+    // Vary radius significantly for non-circular shapes
+    const radiusVariation = 0.7 + seededRandom(seed + i * 200) * randomness * 1.2;
     const radius = baseRadius * radiusVariation;
     
     const x = centerX + Math.cos(angle) * radius;
@@ -104,7 +109,7 @@ export function getBounds(points: Point[]): { minX: number; maxX: number; minY: 
 /**
  * Generate road path with curves between two points
  */
-export function generateRoadPath(from: Point, to: Point, curviness: number = 0.2): string {
+export function generateRoadPath(from: Point, to: Point, seed: number = 0, curviness: number = 0.2): string {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   const distance = Math.sqrt(dx * dx + dy * dy);
@@ -113,10 +118,10 @@ export function generateRoadPath(from: Point, to: Point, curviness: number = 0.2
   const midX = (from.x + to.x) / 2;
   const midY = (from.y + to.y) / 2;
   
-  // Perpendicular offset for curve
+  // Perpendicular offset for curve (use seeded random for consistency)
   const perpX = -dy / distance;
   const perpY = dx / distance;
-  const curveOffset = distance * curviness * (Math.random() - 0.5);
+  const curveOffset = distance * curviness * (seededRandom(seed) - 0.5);
   
   const controlX = midX + perpX * curveOffset;
   const controlY = midY + perpY * curveOffset;
@@ -125,43 +130,45 @@ export function generateRoadPath(from: Point, to: Point, curviness: number = 0.2
 }
 
 /**
- * Get color scheme for location type
+ * Get color scheme for location type (Pokemon-style)
  */
 export function getLocationColors(locationType: string | null): {
   fill: string;
   stroke: string;
-  fillOpacity: number;
+  strokeDasharray?: string;
+  strokeWidth: number;
 } {
   switch (locationType) {
     case "country":
       return {
-        fill: "#E8F4F8",
-        stroke: "#3B82F6",
-        fillOpacity: 0.15,
+        fill: "url(#grass-texture)", // Grass texture
+        stroke: "#16A34A", // Dark green border
+        strokeWidth: 4,
       };
     case "province":
       return {
-        fill: "#F0FDF4",
-        stroke: "#10B981",
-        fillOpacity: 0.2,
+        fill: "url(#grass-texture-province)", // Lighter grass
+        stroke: "#22C55E", // Medium green border
+        strokeDasharray: "10,5",
+        strokeWidth: 3,
       };
     case "city":
       return {
-        fill: "#FEF3C7",
-        stroke: "#F59E0B",
-        fillOpacity: 0.25,
+        fill: "#FDE047",
+        stroke: "#CA8A04",
+        strokeWidth: 2,
       };
     case "town":
       return {
-        fill: "#FCE7F3",
-        stroke: "#EC4899",
-        fillOpacity: 0.2,
+        fill: "#FCA5A5",
+        stroke: "#DC2626",
+        strokeWidth: 1.5,
       };
     default:
       return {
         fill: "#F3F4F6",
         stroke: "#9CA3AF",
-        fillOpacity: 0.1,
+        strokeWidth: 1,
       };
   }
 }

@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   generateOrganicShape,
   pointsToPath,
-  randomPointInBounds,
   getBounds,
   generateRoadPath,
   getLocationColors,
@@ -62,8 +61,9 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
   const [startPoint, setStartPoint] = useState({ x: 0, y: 0 });
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [regions, setRegions] = useState<Region[]>([]);
+  const [mapSeed, setMapSeed] = useState(0); // For regeneration
 
-  // Generate regions on mount
+  // Generate regions on mount and when seed changes
   useEffect(() => {
     const generatedRegions: Region[] = [];
     
@@ -71,50 +71,108 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
     const countries = nodes.filter((n) => n.locationType === "country");
     const provinces = nodes.filter((n) => n.locationType === "province");
     
-    // Generate country regions
+    // Generate country regions - sized to contain all provinces
+    const countryRegionsMap = new Map<string, Region>();
     countries.forEach((country) => {
-      const seed = hashString(country.id);
-      const baseRadius = 250;
-      const sides = 7 + Math.floor(seededRandom(seed) * 4); // 7-10 sides
-      
-      const shape = generateOrganicShape(
-        country.x,
-        country.y,
-        baseRadius,
-        sides,
-        0.4
-      );
+      const seed = hashString(country.id) + mapSeed; // Use mapSeed for variation
       
       // Find children (provinces in this country)
       const children = provinces.filter((p) => p.parentLocationId === country.id);
       
-      generatedRegions.push({ node: country, shape, children });
-    });
-    
-    // Generate province regions
-    provinces.forEach((province) => {
-      const seed = hashString(province.id);
-      const baseRadius = 150;
-      const sides = 6 + Math.floor(seededRandom(seed + 100) * 3); // 6-8 sides
+      // Calculate radius to encompass all children
+      let maxDistance = 200; // Default minimum
+      if (children.length > 0) {
+        children.forEach((child) => {
+          const dx = child.x - country.x;
+          const dy = child.y - country.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          maxDistance = Math.max(maxDistance, distance + 150); // Add padding around provinces
+        });
+      }
+      
+      // More organic shape for realistic country borders
+      const sides = 9 + Math.floor(seededRandom(seed) * 5); // 9-13 sides for complex borders
       
       const shape = generateOrganicShape(
-        province.x,
-        province.y,
-        baseRadius,
+        country.x,
+        country.y,
+        maxDistance,
         sides,
-        0.3
+        0.55, // High randomness for very irregular country shapes
+        seed
       );
+      
+      const region = { node: country, shape, children };
+      countryRegionsMap.set(country.id, region);
+      generatedRegions.push(region);
+    });
+    
+    // Generate province regions - CLIPPED to stay inside parent country
+    provinces.forEach((province) => {
+      const seed = hashString(province.id) + mapSeed; // Use mapSeed for variation
       
       // Find children (cities in this province)
       const children = nodes.filter(
         (n) => n.locationType === "city" && n.parentLocationId === province.id
       );
       
+      // SMALLER radius to prevent overlap - provinces should be distinct, not overlapping
+      let maxDistance = 60; // Reduced minimum
+      if (children.length > 0) {
+        children.forEach((child) => {
+          const dx = child.x - province.x;
+          const dy = child.y - province.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          maxDistance = Math.max(maxDistance, distance + 35); // Less padding to prevent overlap
+        });
+      }
+      
+      // Cap to prevent excessive overlap
+      maxDistance = Math.min(maxDistance, 95);
+      
+      // More sides and irregularity for non-circular shapes
+      const sides = 9 + Math.floor(seededRandom(seed + 100) * 5); // 9-13 sides
+      
+      let shape = generateOrganicShape(
+        province.x,
+        province.y,
+        maxDistance,
+        sides,
+        0.5, // High randomness for irregular, non-circular shapes
+        seed + 1000
+      );
+      
+      // CRITICAL: Scale down province if it extends beyond parent country boundary
+      if (province.parentLocationId && countryRegionsMap.has(province.parentLocationId)) {
+        const parentCountry = countryRegionsMap.get(province.parentLocationId)!;
+        const countryBounds = getBounds(parentCountry.shape);
+        const provinceBounds = getBounds(shape);
+        
+        // Check if province extends beyond country
+        const extendsLeft = provinceBounds.minX < countryBounds.minX;
+        const extendsRight = provinceBounds.maxX > countryBounds.maxX;
+        const extendsTop = provinceBounds.minY < countryBounds.minY;
+        const extendsBottom = provinceBounds.maxY > countryBounds.maxY;
+        
+        if (extendsLeft || extendsRight || extendsTop || extendsBottom) {
+          // Scale down by 80% and regenerate
+          const scaledDistance = maxDistance * 0.75;
+          shape = generateOrganicShape(
+            province.x,
+            province.y,
+            scaledDistance,
+            sides,
+            0.4, // Less randomness for safer fit
+            seed + 1000
+          );
+        }
+      }
+      
       generatedRegions.push({ node: province, shape, children });
     });
     
     setRegions(generatedRegions);
-  }, [nodes]);
+  }, [nodes, mapSeed]); // Regenerate when mapSeed changes
 
   const handleWheel = (e: WheelEvent<SVGSVGElement>) => {
     e.preventDefault();
@@ -228,6 +286,19 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
     <div className="relative">
       <div className="absolute right-2 top-2 z-10 flex flex-col gap-2">
         <button
+          onClick={() => setMapSeed(prev => prev + 1)}
+          className="rounded-md bg-background/90 px-3 py-2 text-sm font-medium shadow-sm hover:bg-muted border"
+          title="Regenerate map (new procedural shapes)"
+        >
+          <div className="flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14 8 A6 6 0 0 1 8 14 M8 14 A6 6 0 0 1 2 8 M2 8 A6 6 0 0 1 8 2" />
+              <path d="M8 2 L8 5 L11 5" />
+            </svg>
+            <span>Regenerate</span>
+          </div>
+        </button>
+        <button
           onClick={zoomIn}
           className="rounded-md bg-background/90 p-2 text-sm font-medium shadow-sm hover:bg-muted border"
           title="Zoom in"
@@ -260,7 +331,7 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
       <svg
         ref={svgRef}
         viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
-        className="h-[600px] w-full cursor-grab active:cursor-grabbing rounded-lg border bg-gradient-to-br from-blue-50 to-green-50 dark:from-slate-900 dark:to-slate-800"
+        className="h-[600px] w-full cursor-grab active:cursor-grabbing rounded-lg border"
         role="img"
         aria-label="Procedural world map"
         onWheel={handleWheel}
@@ -270,15 +341,95 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
         onMouseLeave={handleMouseLeave}
       >
         <defs>
-          {/* Road pattern */}
+          {/* Water texture pattern - Pokemon style ocean */}
           <pattern
-            id="road-texture"
-            width="10"
-            height="10"
+            id="water-texture"
+            width="80"
+            height="80"
             patternUnits="userSpaceOnUse"
           >
-            <rect width="10" height="10" fill="#8B7355" />
-            <line x1="0" y1="5" x2="10" y2="5" stroke="#6B5845" strokeWidth="1" strokeDasharray="2,2" />
+            {/* Base water color - vibrant blue */}
+            <rect width="80" height="80" fill="#60A5FA" />
+            {/* Darker blue gradient for depth */}
+            <rect width="80" height="80" fill="#3B82F6" fillOpacity="0.15" />
+            
+            {/* Wave patterns - simple and clean */}
+            <path
+              d="M 0 15 Q 20 10, 40 15 T 80 15"
+              stroke="#93C5FD"
+              strokeWidth="2"
+              fill="none"
+              opacity="0.4"
+            />
+            <path
+              d="M 0 40 Q 20 35, 40 40 T 80 40"
+              stroke="#93C5FD"
+              strokeWidth="2"
+              fill="none"
+              opacity="0.3"
+            />
+            <path
+              d="M 0 65 Q 20 60, 40 65 T 80 65"
+              stroke="#93C5FD"
+              strokeWidth="2"
+              fill="none"
+              opacity="0.3"
+            />
+          </pattern>
+          
+          {/* Grass texture pattern - Pokemon style grass */}
+          <pattern
+            id="grass-texture"
+            width="40"
+            height="40"
+            patternUnits="userSpaceOnUse"
+          >
+            {/* Base grass color */}
+            <rect width="40" height="40" fill="#86EFAC" />
+            {/* Darker grass patches */}
+            <rect width="40" height="40" fill="#4ADE80" fillOpacity="0.2" />
+            
+            {/* Grass blades */}
+            <path d="M 5 10 L 5 15" stroke="#22C55E" strokeWidth="1" opacity="0.6" />
+            <path d="M 8 8 L 8 13" stroke="#22C55E" strokeWidth="1" opacity="0.6" />
+            <path d="M 12 12 L 12 17" stroke="#22C55E" strokeWidth="1" opacity="0.5" />
+            <path d="M 18 6 L 18 11" stroke="#22C55E" strokeWidth="1" opacity="0.6" />
+            <path d="M 22 14 L 22 19" stroke="#22C55E" strokeWidth="1" opacity="0.5" />
+            <path d="M 28 8 L 28 13" stroke="#22C55E" strokeWidth="1" opacity="0.6" />
+            <path d="M 32 16 L 32 21" stroke="#22C55E" strokeWidth="1" opacity="0.5" />
+            <path d="M 35 10 L 35 15" stroke="#22C55E" strokeWidth="1" opacity="0.6" />
+            
+            {/* Small grass dots */}
+            <circle cx="10" cy="20" r="1" fill="#16A34A" opacity="0.3" />
+            <circle cx="20" cy="25" r="1" fill="#16A34A" opacity="0.3" />
+            <circle cx="30" cy="22" r="1" fill="#16A34A" opacity="0.3" />
+            <circle cx="15" cy="30" r="1" fill="#16A34A" opacity="0.3" />
+            <circle cx="25" cy="35" r="1" fill="#16A34A" opacity="0.3" />
+          </pattern>
+          
+          {/* Province grass texture - slightly different shade */}
+          <pattern
+            id="grass-texture-province"
+            width="40"
+            height="40"
+            patternUnits="userSpaceOnUse"
+          >
+            {/* Lighter grass for provinces */}
+            <rect width="40" height="40" fill="#BBF7D0" />
+            <rect width="40" height="40" fill="#86EFAC" fillOpacity="0.25" />
+            
+            {/* Grass blades */}
+            <path d="M 6 11 L 6 16" stroke="#4ADE80" strokeWidth="1" opacity="0.5" />
+            <path d="M 10 9 L 10 14" stroke="#4ADE80" strokeWidth="1" opacity="0.5" />
+            <path d="M 15 13 L 15 18" stroke="#4ADE80" strokeWidth="1" opacity="0.4" />
+            <path d="M 20 7 L 20 12" stroke="#4ADE80" strokeWidth="1" opacity="0.5" />
+            <path d="M 25 15 L 25 20" stroke="#4ADE80" strokeWidth="1" opacity="0.4" />
+            <path d="M 30 9 L 30 14" stroke="#4ADE80" strokeWidth="1" opacity="0.5" />
+            <path d="M 35 17 L 35 22" stroke="#4ADE80" strokeWidth="1" opacity="0.4" />
+            
+            <circle cx="12" cy="22" r="1" fill="#22C55E" opacity="0.2" />
+            <circle cx="22" cy="27" r="1" fill="#22C55E" opacity="0.2" />
+            <circle cx="32" cy="24" r="1" fill="#22C55E" opacity="0.2" />
           </pattern>
           
           {/* Drop shadow for regions */}
@@ -294,69 +445,73 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
               <feMergeNode in="SourceGraphic"/>
             </feMerge>
           </filter>
+          
+          {/* Drop shadow for labels */}
+          <filter id="label-shadow">
+            <feDropShadow dx="1" dy="1" stdDeviation="2" floodOpacity="0.3" />
+          </filter>
         </defs>
 
-        {/* Background grid */}
-        <pattern
-          id="map-grid"
-          width="50"
-          height="50"
-          patternUnits="userSpaceOnUse"
-        >
-          <path
-            d="M 50 0 L 0 0 0 50"
-            fill="none"
-            stroke="rgba(148, 163, 184, 0.1)"
-            strokeWidth="1"
-          />
-        </pattern>
-        <rect width={MAP_WIDTH} height={MAP_HEIGHT} fill="url(#map-grid)" />
+        {/* Water background - fills entire canvas */}
+        <rect x="-10000" y="-10000" width="20000" height="20000" fill="url(#water-texture)" />
 
-        {/* Draw regions (countries and provinces) */}
-        {regions.map((region) => {
-          const colors = getLocationColors(region.node.locationType);
-          const isSelected = selectedNode === region.node.id;
-          
-          return (
-            <g key={`region-${region.node.id}`}>
-              <path
-                d={pointsToPath(region.shape)}
-                fill={colors.fill}
-                fillOpacity={isSelected ? colors.fillOpacity + 0.1 : colors.fillOpacity}
-                stroke={colors.stroke}
-                strokeWidth={isSelected ? 3 : 2}
-                strokeDasharray={region.node.locationType === "province" ? "5,5" : undefined}
-                filter="url(#region-shadow)"
-                style={{ transition: "all 0.3s" }}
-              />
-              
-              {/* Region label */}
-              <text
-                x={region.node.x}
-                y={region.node.y - 180}
-                textAnchor="middle"
-                fontSize="16"
-                fontWeight="600"
-                fill={colors.stroke}
-                opacity="0.7"
-                style={{ pointerEvents: "none", userSelect: "none" }}
-              >
-                {region.node.iconData} {region.node.name}
-              </text>
-            </g>
-          );
-        })}
+        {/* Layer 1: Countries (background regions) */}
+        {regions
+          .filter((r) => r.node.locationType === "country")
+          .map((region) => {
+            const colors = getLocationColors(region.node.locationType);
+            const isSelected = selectedNode === region.node.id;
+            
+            return (
+              <g key={`region-${region.node.id}`}>
+                <path
+                  d={pointsToPath(region.shape)}
+                  fill={colors.fill}
+                  stroke={colors.stroke}
+                  strokeWidth={isSelected ? colors.strokeWidth + 1 : colors.strokeWidth}
+                  strokeDasharray={colors.strokeDasharray}
+                  filter="url(#region-shadow)"
+                  style={{ pointerEvents: "none" }}
+                />
+              </g>
+            );
+          })}
+        
+        {/* Layer 2: Provinces (smaller regions) */}
+        {regions
+          .filter((r) => r.node.locationType === "province")
+          .map((region) => {
+            const colors = getLocationColors(region.node.locationType);
+            const isSelected = selectedNode === region.node.id;
+            
+            return (
+              <g key={`region-${region.node.id}`}>
+                <path
+                  d={pointsToPath(region.shape)}
+                  fill={colors.fill}
+                  stroke={colors.stroke}
+                  strokeWidth={isSelected ? colors.strokeWidth + 1 : colors.strokeWidth}
+                  strokeDasharray={colors.strokeDasharray}
+                  filter="url(#region-shadow)"
+                  style={{ pointerEvents: "none" }}
+                />
+              </g>
+            );
+          })}
 
-        {/* Draw roads/connections with styled paths */}
+        {/* Layer 3: Roads (below labels) */}
         {links.map((link, index) => {
+          // Use consistent seed based on location IDs
+          const seed = hashString(link.from.id + link.to.id);
           const roadPath = generateRoadPath(
             { x: link.from.x, y: link.from.y },
             { x: link.to.x, y: link.to.y },
-            0.15
+            seed,
+            0.08 // Reduced curviness for stability
           );
           
           return (
-            <g key={`road-${link.from.id}-${link.to.id}-${index}`}>
+            <g key={`road-${link.from.id}-${link.to.id}-${index}`} style={{ pointerEvents: "none" }}>
               {/* Road shadow */}
               <path
                 d={roadPath}
@@ -364,6 +519,7 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
                 strokeWidth="8"
                 fill="none"
                 strokeLinecap="round"
+                style={{ pointerEvents: "none" }}
               />
               {/* Main road */}
               <path
@@ -372,6 +528,7 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
                 strokeWidth="6"
                 fill="none"
                 strokeLinecap="round"
+                style={{ pointerEvents: "none" }}
               />
               {/* Road center line */}
               <path
@@ -382,21 +539,133 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
                 strokeLinecap="round"
                 strokeDasharray="10,10"
                 opacity="0.6"
+                style={{ pointerEvents: "none" }}
               />
             </g>
           );
         })}
+        
+        {/* Layer 4: Region Labels (on top of roads) */}
+        {regions
+          .filter((r) => r.node.locationType === "country")
+          .map((region) => {
+            const colors = getLocationColors(region.node.locationType);
+            
+            return (
+              <g key={`label-${region.node.id}`}>
+                {/* Region label - Pokemon style - LARGE for countries */}
+                {(() => {
+                  const labelY = region.node.y - (getBounds(region.shape).maxY - region.node.y) + 35;
+                  const labelText = region.node.name;
+                  const textWidth = labelText.length * 14; // Larger width for bigger font
+                  const padding = 18;
+                  
+                  return (
+                    <g>
+                      {/* Background box - larger and more prominent */}
+                      <rect
+                        x={region.node.x - textWidth / 2 - padding}
+                        y={labelY - 20}
+                        width={textWidth + padding * 2}
+                        height={34}
+                        fill="white"
+                        stroke={colors.stroke}
+                        strokeWidth="3.5"
+                        rx="6"
+                        filter="url(#label-shadow)"
+                        style={{ pointerEvents: "none" }}
+                      />
+                      {/* Label text - much bigger */}
+                      <text
+                        x={region.node.x}
+                        y={labelY}
+                        textAnchor="middle"
+                        fontSize="22"
+                        fontWeight="900"
+                        fill={colors.stroke}
+                        style={{ 
+                          pointerEvents: "none", 
+                          userSelect: "none",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.1em",
+                          fontFamily: "system-ui, -apple-system, sans-serif"
+                        }}
+                      >
+                        {labelText}
+                      </text>
+                    </g>
+                  );
+                })()}
+              </g>
+            );
+          })}
+        
+        {regions
+          .filter((r) => r.node.locationType === "province")
+          .map((region) => {
+            const colors = getLocationColors(region.node.locationType);
+            
+            return (
+              <g key={`label-${region.node.id}`}>
+                {/* Region label - Pokemon style */}
+                {(() => {
+                  const labelY = region.node.y - (getBounds(region.shape).maxY - region.node.y) + 25;
+                  const labelText = region.node.name;
+                  const textWidth = labelText.length * 7.5; // Approximate width
+                  const padding = 8;
+                  
+                  return (
+                    <g>
+                      {/* Background box - clean design */}
+                      <rect
+                        x={region.node.x - textWidth / 2 - padding}
+                        y={labelY - 12}
+                        width={textWidth + padding * 2}
+                        height={18}
+                        fill="white"
+                        stroke={colors.stroke}
+                        strokeWidth="2"
+                        rx="3"
+                        filter="url(#label-shadow)"
+                        style={{ pointerEvents: "none" }}
+                      />
+                      {/* Label text */}
+                      <text
+                        x={region.node.x}
+                        y={labelY}
+                        textAnchor="middle"
+                        fontSize="12"
+                        fontWeight="700"
+                        fill={colors.stroke}
+                        style={{ 
+                          pointerEvents: "none", 
+                          userSelect: "none",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.08em",
+                          fontFamily: "system-ui, -apple-system, sans-serif"
+                        }}
+                      >
+                        {labelText}
+                      </text>
+                    </g>
+                  );
+                })()}
+              </g>
+            );
+          })}
 
-        {/* Draw location nodes */}
+        {/* Layer 5: Location nodes and labels (topmost layer) */}
         {nodes.map((node) => {
           const residentNames = node.residents.map((r) => r.name).join(", ");
           const isSelected = selectedNode === node.id;
           const icon = node.iconData || "📍";
           
           // Determine node size based on type
+          // Countries and provinces are subtle (region is main visual)
+          // Cities and towns are prominent (node is main visual)
           let nodeRadius = 32;
-          if (node.locationType === "country") nodeRadius = 48;
-          else if (node.locationType === "province") nodeRadius = 40;
+          if (node.locationType === "country") nodeRadius = 24; // Smaller, subtle
+          else if (node.locationType === "province") nodeRadius = 20; // Smaller, subtle
           else if (node.locationType === "city") nodeRadius = 36;
           else if (node.locationType === "town") nodeRadius = 28;
           
@@ -414,44 +683,40 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
                     : `${node.name} — no residents yet`}
                 </title>
                 
-                {/* Node background circle with glow when selected */}
-                <circle
-                  cx={node.x}
-                  cy={node.y}
-                  r={isSelected ? nodeRadius + 4 : nodeRadius}
-                  fill="white"
-                  stroke={isSelected ? "#3B82F6" : "#94A3B8"}
-                  strokeWidth={isSelected ? 3 : 2}
-                  filter={isSelected ? "url(#node-glow)" : undefined}
-                  style={{ transition: "all 0.2s" }}
-                />
+                {/* Node background circle - REMOVED per user feedback */}
                 
-                {/* Icon */}
+                {/* Icon - clean and simple */}
                 <text
                   x={node.x}
-                  y={node.y + 10}
+                  y={node.y + (node.locationType === "country" || node.locationType === "province" ? 12 : 10)}
                   textAnchor="middle"
-                  fontSize={nodeRadius * 0.75}
+                  fontSize={
+                    node.locationType === "country" || node.locationType === "province"
+                      ? 32
+                      : nodeRadius * 0.75
+                  }
                   style={{ pointerEvents: "none", userSelect: "none" }}
                 >
                   {icon}
                 </text>
                 
-                {/* Location name below */}
-                <text
-                  x={node.x}
-                  y={node.y + nodeRadius + 20}
-                  textAnchor="middle"
-                  fontSize="14"
-                  fontWeight={isSelected ? "700" : "600"}
-                  fill="rgba(15, 23, 42, 0.9)"
-                  style={{ pointerEvents: "none", userSelect: "none" }}
-                >
-                  {node.name}
-                </text>
+                {/* Location name below - only for cities and towns (countries/provinces have region labels) */}
+                {node.locationType !== "country" && node.locationType !== "province" && (
+                  <text
+                    x={node.x}
+                    y={node.y + nodeRadius + 20}
+                    textAnchor="middle"
+                    fontSize="14"
+                    fontWeight={isSelected ? "700" : "600"}
+                    fill="rgba(15, 23, 42, 0.9)"
+                    style={{ pointerEvents: "none", userSelect: "none" }}
+                  >
+                    {node.name}
+                  </text>
+                )}
                 
-                {/* Resident count */}
-                {node.residents.length > 0 && (
+                {/* Resident count - only for cities and towns */}
+                {node.residents.length > 0 && node.locationType !== "country" && node.locationType !== "province" && (
                   <text
                     x={node.x}
                     y={node.y + nodeRadius + 36}
@@ -469,8 +734,35 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
         })}
       </svg>
       
-      <div className="mt-3 text-xs text-muted-foreground">
-        <strong>Controls:</strong> Drag to pan • Scroll to zoom • Click locations to view details
+      <div className="mt-4 space-y-2">
+        <div className="text-xs text-muted-foreground">
+          <strong>Controls:</strong> Drag to pan • Scroll to zoom • Click locations to view details
+        </div>
+        
+        {/* Legend - Pokemon Style */}
+        <div className="flex flex-wrap items-center gap-4 text-sm font-medium">
+          <div className="font-bold text-foreground">Map Legend:</div>
+          
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded border-2 border-green-600" style={{ background: "url('/api/placeholder/24/24')", backgroundColor: "#86EFAC" }}></div>
+            <span className="text-foreground">🌍 Country</span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded border-2 border-green-500 border-dashed" style={{ background: "url('/api/placeholder/24/24')", backgroundColor: "#BBF7D0" }}></div>
+            <span className="text-foreground">🏛️ Province</span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-1 rounded-full bg-amber-700"></div>
+            <span className="text-foreground">🛣️ Roads</span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded" style={{ backgroundColor: "#60A5FA" }}></div>
+            <span className="text-foreground">🌊 Ocean</span>
+          </div>
+        </div>
       </div>
     </div>
   );

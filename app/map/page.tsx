@@ -84,9 +84,14 @@ function buildMapNodes(locations: Array<{
     
     if (province.parentLocationId && positionedNodes.has(province.parentLocationId)) {
       const parent = positionedNodes.get(province.parentLocationId)!;
-      // Position around parent
-      const angle = ((seed % 360) / 360) * Math.PI * 2;
-      const distance = 100 + (seed % 50);
+      
+      // Count how many siblings this province has
+      const siblings = provinces.filter(p => p.parentLocationId === province.parentLocationId);
+      const siblingIndex = siblings.findIndex(s => s.id === province.id);
+      
+      // Distribute siblings evenly around parent
+      const angle = (siblingIndex / Math.max(siblings.length, 1)) * Math.PI * 2;
+      const distance = 150; // Increased spacing
       x = parent.x + Math.cos(angle) * distance;
       y = parent.y + Math.sin(angle) * distance;
     } else {
@@ -117,8 +122,14 @@ function buildMapNodes(locations: Array<{
     
     if (city.parentLocationId && positionedNodes.has(city.parentLocationId)) {
       const parent = positionedNodes.get(city.parentLocationId)!;
-      const angle = ((seed % 360) / 360) * Math.PI * 2;
-      const distance = 40 + (seed % 30);
+      
+      // Count siblings
+      const siblings = cities.filter(c => c.parentLocationId === city.parentLocationId);
+      const siblingIndex = siblings.findIndex(s => s.id === city.id);
+      
+      // Distribute evenly around parent province - WITHIN province boundaries
+      const angle = (siblingIndex / Math.max(siblings.length, 1)) * Math.PI * 2 + (seed % 100) / 100;
+      const distance = 50; // Reduced distance to stay inside province
       x = parent.x + Math.cos(angle) * distance;
       y = parent.y + Math.sin(angle) * distance;
     } else {
@@ -148,8 +159,14 @@ function buildMapNodes(locations: Array<{
     
     if (town.parentLocationId && positionedNodes.has(town.parentLocationId)) {
       const parent = positionedNodes.get(town.parentLocationId)!;
-      const angle = ((seed % 360) / 360) * Math.PI * 2;
-      const distance = 20 + (seed % 20);
+      
+      // Count siblings
+      const siblings = towns.filter(t => t.parentLocationId === town.parentLocationId);
+      const siblingIndex = siblings.findIndex(s => s.id === town.id);
+      
+      // Distribute evenly around parent city
+      const angle = (siblingIndex / Math.max(siblings.length, 1)) * Math.PI * 2 + (seed % 100) / 100;
+      const distance = 50; // Increased spacing
       x = parent.x + Math.cos(angle) * distance;
       y = parent.y + Math.sin(angle) * distance;
     } else {
@@ -196,17 +213,18 @@ function buildMapNodes(locations: Array<{
 }
 
 function buildMapLinks(nodes: MapNode[]) {
-  if (nodes.length < 2) {
-    return [];
-  }
-
   const links: MapLink[] = [];
-  for (let i = 0; i < nodes.length - 1; i += 1) {
-    links.push({ from: nodes[i], to: nodes[i + 1] });
-  }
-  if (nodes.length > 2) {
-    links.push({ from: nodes[nodes.length - 1], to: nodes[0] });
-  }
+  
+  // Create a map for quick lookup
+  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+  
+  // Only connect children to their parents (no circular connections)
+  nodes.forEach((node) => {
+    if (node.parentLocationId && nodeMap.has(node.parentLocationId)) {
+      const parent = nodeMap.get(node.parentLocationId)!;
+      links.push({ from: parent, to: node });
+    }
+  });
 
   return links;
 }
