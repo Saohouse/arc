@@ -76,13 +76,13 @@ export default async function TimelinePage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header Section - Mobile Optimized */}
-      <div className="space-y-4">
+      <div className="space-y-2 sm:space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div className="flex-1">
-            <h1 className="text-2xl sm:text-3xl font-semibold">📅 Timeline</h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight">📅 Timeline</h1>
+            <p className="text-sm sm:text-base text-muted-foreground mt-2 tracking-tight">
               Visual timeline of episodes and story arcs.
             </p>
           </div>
@@ -112,7 +112,7 @@ export default async function TimelinePage() {
       </div>
 
       {episodes.length === 0 ? (
-        <div className="rounded border border-dashed p-12 text-center text-sm text-muted-foreground">
+        <div className="rounded-lg border border-dashed p-8 sm:p-12 text-center text-sm text-muted-foreground">
           No episodes yet. Create your first episode to start building your
           timeline.
         </div>
@@ -144,7 +144,7 @@ export default async function TimelinePage() {
                     {/* Episode Card */}
                     <Link
                       href={`/episodes/${episode.id}`}
-                      className="block w-48 rounded border p-4 transition-all hover:border-foreground/40 hover:shadow-lg"
+                      className="card-enhanced block w-48 p-4 hover:scale-105 transition-transform"
                     >
                       <div className="flex items-center gap-2">
                         <div

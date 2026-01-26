@@ -65,13 +65,13 @@ export default async function TagsPage() {
   tagList.sort((a, b) => b.usageCount - a.usageCount);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header Section - Mobile Optimized */}
-      <div className="space-y-4">
+      <div className="space-y-2 sm:space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div className="flex-1">
-            <h1 className="text-2xl sm:text-3xl font-semibold">🏷️ Tags</h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight">🏷️ Tags</h1>
+            <p className="text-sm sm:text-base text-muted-foreground mt-2 tracking-tight">
               Manage tags across your {currentStory.name} story.
             </p>
           </div>
@@ -87,28 +87,28 @@ export default async function TagsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded border p-4">
-          <div className="text-2xl font-bold">{allTagNames.size}</div>
-          <div className="text-xs text-muted-foreground">Total Tags</div>
+      <div className="grid gap-4 sm:gap-6 grid-cols-3">
+        <div className="card-enhanced p-6 space-y-1">
+          <div className="text-3xl sm:text-4xl font-bold tracking-tight bg-gradient-to-br from-blue-600 to-blue-400 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent">{allTagNames.size}</div>
+          <div className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider font-medium">Total Tags</div>
         </div>
-        <div className="rounded border p-4">
-          <div className="text-2xl font-bold">
+        <div className="card-enhanced p-6 space-y-1">
+          <div className="text-3xl sm:text-4xl font-bold tracking-tight bg-gradient-to-br from-purple-600 to-purple-400 dark:from-purple-400 dark:to-purple-600 bg-clip-text text-transparent">
             {tagList.filter((t) => t.hasCustomColor).length}
           </div>
-          <div className="text-xs text-muted-foreground">Custom Colors</div>
+          <div className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider font-medium">Custom Colors</div>
         </div>
-        <div className="rounded border p-4">
-          <div className="text-2xl font-bold">
+        <div className="card-enhanced p-6 space-y-1">
+          <div className="text-3xl sm:text-4xl font-bold tracking-tight bg-gradient-to-br from-gray-600 to-gray-400 dark:from-gray-400 dark:to-gray-600 bg-clip-text text-transparent">
             {tagList.filter((t) => t.usageCount === 0).length}
           </div>
-          <div className="text-xs text-muted-foreground">Unused</div>
+          <div className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider font-medium">Unused</div>
         </div>
       </div>
 
       {/* Tags List - Mobile Responsive */}
       {tagList.length === 0 ? (
-        <div className="rounded border border-dashed p-8 text-center text-sm text-muted-foreground">
+        <div className="rounded-lg border border-dashed p-8 sm:p-12 text-center text-sm text-muted-foreground">
           No tags yet. Start tagging your characters, worlds, locations, and
           objects!
         </div>

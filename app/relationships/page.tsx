@@ -77,11 +77,11 @@ export default async function RelationshipsPage() {
   return (
     <div className="space-y-8">
       {/* Header Section - Mobile Optimized */}
-      <div className="space-y-4">
+      <div className="space-y-2 sm:space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div className="flex-1">
-            <h1 className="text-2xl sm:text-3xl font-semibold">🔗 Relationships</h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight">🔗 Relationships</h1>
+            <p className="text-sm sm:text-base text-muted-foreground mt-2 tracking-tight">
               Map connections between entities in your world.
             </p>
           </div>
@@ -98,15 +98,15 @@ export default async function RelationshipsPage() {
 
       {/* Graph View */}
       <section className="space-y-3">
-        <h2 className="text-xl font-semibold">Relationship Graph</h2>
+        <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">Relationship Graph</h2>
         <RelationshipGraph relationships={graphData} />
       </section>
 
       {/* List View */}
       <section className="space-y-3">
-        <h2 className="text-xl font-semibold">All Relationships</h2>
+        <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">All Relationships</h2>
         {relationships.length === 0 ? (
-          <div className="rounded border border-dashed p-8 text-center text-sm text-muted-foreground">
+          <div className="rounded-lg border border-dashed p-8 sm:p-12 text-center text-sm text-muted-foreground">
             No relationships yet. Start connecting your characters, locations,
             worlds, and objects.
           </div>
@@ -133,7 +133,7 @@ export default async function RelationshipsPage() {
                 <Link
                   key={rel.id}
                   href={`/relationships/${rel.id}`}
-                  className="block rounded border p-5 transition-all hover:border-foreground/40 hover:shadow-sm"
+                  className="card-enhanced block p-5 sm:p-6 hover:scale-[1.01] transition-transform"
                 >
                   <div className="flex items-center gap-3 text-base flex-wrap">
                     <span className="font-semibold">

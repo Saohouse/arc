@@ -133,9 +133,38 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
     <div className="space-y-6">
       {/* Header Section - Mobile Optimized */}
       <div className="space-y-4">
+        {/* Back Button */}
+        <Link
+          href="/archive/characters"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M10 19l-7-7m0 0l7-7m-7 7h18"
+            />
+          </svg>
+          Back to Characters
+        </Link>
+
         {/* Breadcrumb */}
-        <div className="text-sm text-muted-foreground">
-          Archive / Characters
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Link href="/archive" className="hover:text-foreground transition-colors">
+            Archive
+          </Link>
+          <span>/</span>
+          <Link href="/archive/characters" className="hover:text-foreground transition-colors">
+            Characters
+          </Link>
+          <span>/</span>
+          <span className="text-foreground">{character.name}</span>
         </div>
         
         {/* Title and Actions */}
@@ -162,12 +191,6 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
                 action={deleteCharacter}
               />
             </RoleGate>
-            <Link
-              href="/archive/characters"
-              className="text-sm text-muted-foreground hover:text-foreground whitespace-nowrap"
-            >
-              Back to list
-            </Link>
           </div>
         </div>
       </div>

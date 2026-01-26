@@ -467,69 +467,69 @@ export default async function ContinuityPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-semibold">⏱️ Continuity</h1>
-        <p className="text-sm text-muted-foreground">
+      <div className="space-y-2 sm:space-y-3">
+        <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight">⏱️ Continuity</h1>
+        <p className="text-sm sm:text-base text-muted-foreground tracking-tight">
           Quality control and consistency checks for your world.
         </p>
       </div>
 
       {/* Health Score */}
-      <section className="rounded-lg border p-6">
-        <h2 className="text-xl font-semibold mb-4">Data Health</h2>
-        <div className="grid gap-4 md:grid-cols-4">
-          <div>
-            <div className="text-3xl font-bold">
+      <section className="card-enhanced p-6 sm:p-8">
+        <h2 className="text-xl sm:text-2xl font-semibold mb-6 tracking-tight">Data Health</h2>
+        <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-4">
+          <div className="space-y-1">
+            <div className="text-3xl sm:text-4xl font-bold tracking-tight bg-gradient-to-br from-blue-600 to-blue-400 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent">
               {overallHealth.toFixed(0)}%
             </div>
-            <div className="text-xs text-muted-foreground">Overall Health</div>
+            <div className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider font-medium">Overall Health</div>
           </div>
-          <div>
-            <div className="text-3xl font-bold">
+          <div className="space-y-1">
+            <div className="text-3xl sm:text-4xl font-bold tracking-tight bg-gradient-to-br from-purple-600 to-purple-400 dark:from-purple-400 dark:to-purple-600 bg-clip-text text-transparent">
               {imageCompleteness.toFixed(0)}%
             </div>
-            <div className="text-xs text-muted-foreground">With Images</div>
+            <div className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider font-medium">With Images</div>
           </div>
-          <div>
-            <div className="text-3xl font-bold">
+          <div className="space-y-1">
+            <div className="text-3xl sm:text-4xl font-bold tracking-tight bg-gradient-to-br from-emerald-600 to-emerald-400 dark:from-emerald-400 dark:to-emerald-600 bg-clip-text text-transparent">
               {descriptionCompleteness.toFixed(0)}%
             </div>
-            <div className="text-xs text-muted-foreground">
+            <div className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider font-medium">
               With Descriptions
             </div>
           </div>
-          <div>
-            <div className="text-3xl font-bold">
+          <div className="space-y-1">
+            <div className="text-3xl sm:text-4xl font-bold tracking-tight bg-gradient-to-br from-amber-600 to-amber-400 dark:from-amber-400 dark:to-amber-600 bg-clip-text text-transparent">
               {tagsCompleteness.toFixed(0)}%
             </div>
-            <div className="text-xs text-muted-foreground">With Tags</div>
+            <div className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider font-medium">With Tags</div>
           </div>
         </div>
       </section>
 
       {/* Issues Summary */}
-      <section className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-lg border p-6">
-          <div className="text-3xl font-bold text-red-600">{errors.length}</div>
-          <div className="text-sm text-muted-foreground">Errors</div>
+      <section className="grid gap-4 sm:gap-6 grid-cols-3">
+        <div className="card-enhanced p-6 space-y-1">
+          <div className="text-3xl sm:text-4xl font-bold text-red-600 dark:text-red-400 tracking-tight">{errors.length}</div>
+          <div className="text-[10px] sm:text-sm text-muted-foreground uppercase tracking-wider font-medium">Errors</div>
         </div>
-        <div className="rounded-lg border p-6">
-          <div className="text-3xl font-bold text-amber-600">
+        <div className="card-enhanced p-6 space-y-1">
+          <div className="text-3xl sm:text-4xl font-bold text-amber-600 dark:text-amber-400 tracking-tight">
             {warnings.length}
           </div>
-          <div className="text-sm text-muted-foreground">Warnings</div>
+          <div className="text-[10px] sm:text-sm text-muted-foreground uppercase tracking-wider font-medium">Warnings</div>
         </div>
-        <div className="rounded-lg border p-6">
-          <div className="text-3xl font-bold text-blue-600">
+        <div className="card-enhanced p-6 space-y-1">
+          <div className="text-3xl sm:text-4xl font-bold text-blue-600 dark:text-blue-400 tracking-tight">
             {infos.length}
           </div>
-          <div className="text-sm text-muted-foreground">Info</div>
+          <div className="text-[10px] sm:text-sm text-muted-foreground uppercase tracking-wider font-medium">Info</div>
         </div>
       </section>
 
       {/* Issues List */}
       {issues.length === 0 ? (
-        <div className="rounded border border-dashed p-8 text-center text-sm text-muted-foreground">
+        <div className="rounded-lg border border-dashed p-8 sm:p-12 text-center text-sm text-muted-foreground">
           ✅ No issues detected! Your world is in perfect continuity.
         </div>
       ) : (
