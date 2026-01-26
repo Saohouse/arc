@@ -27,6 +27,9 @@ async function createLocation(formData: FormData) {
 
   const locationType = String(formData.get("locationType") ?? "").trim() || null;
   const parentLocationId = String(formData.get("parentLocationId") ?? "").trim() || null;
+  
+  const iconType = String(formData.get("iconType") ?? "emoji");
+  const iconData = String(formData.get("iconData") ?? "📍");
 
   const imageFile = formData.get("image");
   const imageUrl =
@@ -43,6 +46,8 @@ async function createLocation(formData: FormData) {
       tags,
       locationType,
       parentLocationId,
+      iconType,
+      iconData,
       storyId: currentStory.id,
     },
   });

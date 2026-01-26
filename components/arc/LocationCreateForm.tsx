@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { ImageUpload } from "@/components/arc/ImageUpload";
 import { RichTextEditor } from "@/components/arc/RichTextEditor";
+import { IconPicker } from "@/components/arc/IconPicker";
+import { getDefaultLocationIcon, type LocationType } from "@/lib/location-icons";
 
 interface ParentLocation {
   id: string;
@@ -22,11 +24,22 @@ export function LocationCreateForm({
 }: LocationCreateFormProps) {
   const [overview, setOverview] = useState("");
   const [selectedLocationType, setSelectedLocationType] = useState("");
+  const [icon, setIcon] = useState<string>(getDefaultLocationIcon(null));
+
+  // Update icon when location type changes
+  const handleLocationTypeChange = (type: string) => {
+    setSelectedLocationType(type);
+    // Auto-update icon to match location type default
+    const defaultIcon = getDefaultLocationIcon((type || null) as LocationType);
+    setIcon(defaultIcon);
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     formData.set("overview", overview); // Use the rich text content
+    formData.set("iconType", "emoji"); // Always emoji for now
+    formData.set("iconData", icon);
     await createAction(formData);
   };
 
@@ -69,7 +82,7 @@ export function LocationCreateForm({
           <select
             name="locationType"
             value={selectedLocationType}
-            onChange={(e) => setSelectedLocationType(e.target.value)}
+            onChange={(e) => handleLocationTypeChange(e.target.value)}
             className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
           >
             <option value="">Standalone location</option>
@@ -106,6 +119,12 @@ export function LocationCreateForm({
           </select>
         </label>
       </div>
+
+      <IconPicker
+        value={icon}
+        onChange={setIcon}
+        locationType={(selectedLocationType || null) as LocationType}
+      />
 
       <label className="block text-sm font-medium">
         Summary

@@ -26,6 +26,9 @@ async function updateLocation(formData: FormData) {
 
   const locationType = String(formData.get("locationType") ?? "").trim() || null;
   const parentLocationId = String(formData.get("parentLocationId") ?? "").trim() || null;
+  
+  const iconType = String(formData.get("iconType") ?? "emoji");
+  const iconData = String(formData.get("iconData") ?? "📍");
 
   const imageFile = formData.get("image");
   const imageData = formData.get("image_data"); // Cropped image data URL
@@ -59,6 +62,8 @@ async function updateLocation(formData: FormData) {
       tags,
       locationType,
       parentLocationId,
+      iconType,
+      iconData,
     },
   });
 

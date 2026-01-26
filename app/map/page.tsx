@@ -17,6 +17,9 @@ type MapNode = {
   x: number;
   y: number;
   residents: MapResident[];
+  iconType: string;
+  iconData: string | null;
+  locationType: string | null;
 };
 
 type MapLink = {
@@ -32,7 +35,14 @@ function hashString(input: string) {
   return hash;
 }
 
-function buildMapNodes(locations: Array<{ id: string; name: string; residents: MapResident[] }>) {
+function buildMapNodes(locations: Array<{ 
+  id: string; 
+  name: string; 
+  residents: MapResident[];
+  iconType: string;
+  iconData: string | null;
+  locationType: string | null;
+}>) {
   const count = locations.length;
   const radius = Math.min(MAP_WIDTH, MAP_HEIGHT) * 0.33;
   const centerX = MAP_WIDTH / 2;
@@ -53,6 +63,9 @@ function buildMapNodes(locations: Array<{ id: string; name: string; residents: M
       x,
       y,
       residents: location.residents,
+      iconType: location.iconType,
+      iconData: location.iconData,
+      locationType: location.locationType,
     };
   });
 }

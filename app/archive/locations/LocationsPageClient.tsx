@@ -18,6 +18,8 @@ type Location = {
   order: number;
   locationType?: string | null;
   parentLocationId?: string | null;
+  iconType?: string;
+  iconData?: string | null;
   parent?: {
     id: string;
     name: string;
@@ -124,9 +126,15 @@ function LocationsList({ storyId, locations, tagColorMap }: LocationsListProps) 
     );
   };
 
-  // Get icon for location type
-  const getLocationIcon = (locationType: string | null | undefined): string => {
-    switch (locationType) {
+  // Get icon for location - use custom icon if available, otherwise default by type
+  const getLocationIcon = (location: Location): string => {
+    // Use custom icon if set
+    if (location.iconData) {
+      return location.iconData;
+    }
+    
+    // Otherwise fall back to type defaults
+    switch (location.locationType) {
       case "country": return "🌍";
       case "province": return "🏛️";
       case "city": return "🏙️";
@@ -140,7 +148,7 @@ function LocationsList({ storyId, locations, tagColorMap }: LocationsListProps) 
     const children = locationTree.getChildren(location.id);
     const hasChildren = children.length > 0;
     const isExpanded = expandedNodes.has(location.id);
-    const icon = getLocationIcon(location.locationType);
+    const icon = getLocationIcon(location);
     
     return (
       <div key={location.id} className="space-y-1">

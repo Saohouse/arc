@@ -17,6 +17,9 @@ type MapNode = {
   x: number;
   y: number;
   residents: MapResident[];
+  iconType: string;
+  iconData: string | null;
+  locationType: string | null;
 };
 
 type MapLink = {
@@ -258,61 +261,82 @@ export function InteractiveMap({ nodes, links }: InteractiveMapProps) {
         {nodes.map((node) => {
           const residentNames = node.residents.map((r) => r.name).join(", ");
           const isSelected = selectedNode === node.id;
+          const icon = node.iconData || "📍";
+          
           return (
-            <a
-              key={node.id}
-              href={`/archive/locations/${node.id}`}
-              onMouseEnter={() => setSelectedNode(node.id)}
-              onMouseLeave={() => setSelectedNode(null)}
-              style={{ cursor: "pointer" }}
-            >
-              <title>
-                {residentNames
-                  ? `${node.name} — ${residentNames}`
-                  : `${node.name} — no residents yet`}
-              </title>
-              <circle
-                cx={node.x}
-                cy={node.y}
-                r={isSelected ? 30 : 26}
-                fill={
-                  isSelected
-                    ? "rgba(99, 102, 241, 0.25)"
-                    : "rgba(99, 102, 241, 0.15)"
-                }
-                stroke={
-                  isSelected
-                    ? "rgba(99, 102, 241, 1)"
-                    : "rgba(99, 102, 241, 0.7)"
-                }
-                strokeWidth={isSelected ? 3 : 2}
-                style={{ transition: "all 0.2s" }}
-              />
-              <text
-                x={node.x}
-                y={node.y + 5}
-                textAnchor="middle"
-                fontSize="14"
-                fill="rgba(24, 24, 27, 0.9)"
-                style={{ pointerEvents: "none", userSelect: "none" }}
+            <g key={node.id}>
+              <a
+                href={`/archive/locations/${node.id}`}
+                onMouseEnter={() => setSelectedNode(node.id)}
+                onMouseLeave={() => setSelectedNode(null)}
+                style={{ cursor: "pointer" }}
               >
-                {node.name}
-              </text>
-              <text
-                x={node.x}
-                y={node.y + 24}
-                textAnchor="middle"
-                fontSize="11"
-                fill="rgba(99, 99, 110, 0.9)"
-                style={{ pointerEvents: "none", userSelect: "none" }}
-              >
-                {node.residents.length
-                  ? `${node.residents.length} resident${
-                      node.residents.length === 1 ? "" : "s"
-                    }`
-                  : "no residents"}
-              </text>
-            </a>
+                <title>
+                  {residentNames
+                    ? `${node.name} — ${residentNames}`
+                    : `${node.name} — no residents yet`}
+                </title>
+                
+                {/* Background circle */}
+                <circle
+                  cx={node.x}
+                  cy={node.y}
+                  r={isSelected ? 36 : 32}
+                  fill={
+                    isSelected
+                      ? "rgba(99, 102, 241, 0.15)"
+                      : "rgba(255, 255, 255, 0.9)"
+                  }
+                  stroke={
+                    isSelected
+                      ? "rgba(99, 102, 241, 1)"
+                      : "rgba(99, 102, 241, 0.4)"
+                  }
+                  strokeWidth={isSelected ? 3 : 2}
+                  style={{ transition: "all 0.2s" }}
+                />
+                
+                {/* Icon as text */}
+                <text
+                  x={node.x}
+                  y={node.y + 8}
+                  textAnchor="middle"
+                  fontSize="28"
+                  style={{ pointerEvents: "none", userSelect: "none" }}
+                >
+                  {icon}
+                </text>
+                
+                {/* Location name below */}
+                <text
+                  x={node.x}
+                  y={node.y + 48}
+                  textAnchor="middle"
+                  fontSize="13"
+                  fontWeight={isSelected ? "600" : "500"}
+                  fill="rgba(24, 24, 27, 0.95)"
+                  style={{ pointerEvents: "none", userSelect: "none" }}
+                >
+                  {node.name}
+                </text>
+                
+                {/* Resident count */}
+                <text
+                  x={node.x}
+                  y={node.y + 64}
+                  textAnchor="middle"
+                  fontSize="10"
+                  fill="rgba(99, 99, 110, 0.9)"
+                  style={{ pointerEvents: "none", userSelect: "none" }}
+                >
+                  {node.residents.length
+                    ? `${node.residents.length} resident${
+                        node.residents.length === 1 ? "" : "s"
+                      }`
+                    : "no residents"}
+                </text>
+              </a>
+            </g>
           );
         })}
       </svg>

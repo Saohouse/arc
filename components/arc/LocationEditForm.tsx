@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { ImageUpload } from "@/components/arc/ImageUpload";
 import { RichTextEditor } from "@/components/arc/RichTextEditor";
+import { IconPicker } from "@/components/arc/IconPicker";
+import { getDefaultLocationIcon, type LocationType } from "@/lib/location-icons";
 
 interface Location {
   id: string;
@@ -14,6 +16,8 @@ interface Location {
   imageUrl: string | null;
   locationType: string | null;
   parentLocationId: string | null;
+  iconType: string;
+  iconData: string | null;
 }
 
 interface ParentLocation {
@@ -35,11 +39,24 @@ export function LocationEditForm({
 }: LocationEditFormProps) {
   const [overview, setOverview] = useState(location.overview || "");
   const [selectedLocationType, setSelectedLocationType] = useState(location.locationType || "");
+  const [icon, setIcon] = useState<string>(
+    location.iconData || getDefaultLocationIcon((location.locationType || null) as LocationType)
+  );
+
+  // Update icon when location type changes
+  const handleLocationTypeChange = (type: string) => {
+    setSelectedLocationType(type);
+    // Auto-update icon to match location type default
+    const defaultIcon = getDefaultLocationIcon((type || null) as LocationType);
+    setIcon(defaultIcon);
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     formData.set("overview", overview); // Use the rich text content
+    formData.set("iconType", "emoji"); // Always emoji for now
+    formData.set("iconData", icon);
     await updateAction(formData);
   };
 
@@ -90,7 +107,7 @@ export function LocationEditForm({
           <select
             name="locationType"
             value={selectedLocationType}
-            onChange={(e) => setSelectedLocationType(e.target.value)}
+            onChange={(e) => handleLocationTypeChange(e.target.value)}
             className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
           >
             <option value="">Standalone location</option>
@@ -128,6 +145,12 @@ export function LocationEditForm({
           </select>
         </label>
       </div>
+
+      <IconPicker
+        value={icon}
+        onChange={setIcon}
+        locationType={(selectedLocationType || null) as LocationType}
+      />
 
       <label className="block text-sm font-medium">
         Summary
