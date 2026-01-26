@@ -18,9 +18,9 @@ export async function GET() {
       });
     }
 
-    let membership = null;
+    let membership: { role: string; storyId: string } | null = null;
     if (storyId) {
-      membership = await prisma.storyMember.findUnique({
+      const membershipData = await prisma.storyMember.findUnique({
         where: {
           storyId_userId: {
             storyId,
@@ -28,6 +28,13 @@ export async function GET() {
           },
         },
       });
+      
+      if (membershipData) {
+        membership = {
+          role: membershipData.role,
+          storyId: membershipData.storyId,
+        };
+      }
     }
 
     return NextResponse.json({
@@ -36,10 +43,7 @@ export async function GET() {
         email: user.email,
       },
       storyId,
-      membership: membership ? {
-        role: membership.role,
-        storyId: membership.storyId,
-      } : null,
+      membership,
       cookies: {
         arc_current_story: cookieStore.get("arc_current_story")?.value,
         session: cookieStore.get("session")?.value ? "present" : "missing",
