@@ -2,24 +2,60 @@
 
 import { useState, useEffect, useRef } from "react";
 import { FRANK_DANIEL_SECTIONS, CHARACTER_TYPES, type WizardSection } from "@/lib/frank-daniel-questions";
-import { ChevronLeft, ChevronRight, Save, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, Sparkles, Upload, User } from "lucide-react";
+import Image from "next/image";
 
 interface CharacterWizardProps {
   initialData?: Record<string, string>;
   onSave: (data: Record<string, string>, updatedName?: string) => void;
   characterName?: string;
+  initialImageUrl?: string;
+  onImageChange?: (file: File | null) => void;
 }
 
-export function CharacterWizard({ initialData = {}, onSave, characterName }: CharacterWizardProps) {
+export function CharacterWizard({ initialData = {}, onSave, characterName, initialImageUrl, onImageChange }: CharacterWizardProps) {
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>(initialData);
   const [editableName, setEditableName] = useState(characterName || "");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(initialImageUrl || null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const hasLoadedDraft = useRef(false);
 
   const currentSection = FRANK_DANIEL_SECTIONS[currentSectionIndex];
   const isFirstSection = currentSectionIndex === 0;
   const isLastSection = currentSectionIndex === FRANK_DANIEL_SECTIONS.length - 1;
+
+  // Get character type for emoji selection
+  const characterType = answers["character_type_type"] || "protagonist";
+  const typeEmojis: Record<string, string> = {
+    protagonist: "🦸",
+    antagonist: "😈",
+    mentor: "🧙",
+    support: "🤝",
+    love_interest: "💖",
+    other: "⭐"
+  };
+  const characterEmoji = typeEmojis[characterType] || "⭐";
+
+  // Handle image file selection
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      if (onImageChange) {
+        onImageChange(file);
+      }
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Helper function to replace {{name}} placeholder with actual name for display
   const replacePlaceholders = (text: string): string => {
@@ -135,24 +171,76 @@ export function CharacterWizard({ initialData = {}, onSave, characterName }: Cha
         </div>
       </div>
 
-      {/* Character Name Field - Clean and simple */}
-      {characterName && (
-        <div className="rounded-lg border p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20">
-          <label className="block text-sm font-semibold mb-2">
-            Character Name
-          </label>
-          <input
-            type="text"
-            value={editableName}
-            onChange={(e) => setEditableName(e.target.value)}
-            placeholder="Enter character name..."
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-          />
-          <p className="text-xs text-muted-foreground mt-2">
-            💡 The name updates automatically everywhere it appears (shown as <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-1 rounded text-xs">highlighted</span>)
-          </p>
+      {/* Character Name & Image Upload - Always visible */}
+      <div className="rounded-lg border p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20">
+        <div className="flex gap-6">
+          {/* Image Upload Section */}
+          <div className="flex-shrink-0">
+            <label className="block text-sm font-semibold mb-2">Portrait</label>
+            <div className="relative">
+              {imagePreview ? (
+                <div className="relative w-32 h-32 rounded-lg overflow-hidden border-2 border-blue-200 dark:border-blue-800">
+                  <Image
+                    src={imagePreview}
+                    alt={editableName || "Character"}
+                    fill
+                    className="object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImagePreview(null);
+                      setSelectedFile(null);
+                      if (onImageChange) onImageChange(null);
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 text-xs"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-32 h-32 rounded-lg border-2 border-dashed border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/20 hover:bg-blue-100 dark:hover:bg-blue-950/30 transition-colors flex flex-col items-center justify-center gap-2"
+                >
+                  <div className="text-4xl">{characterEmoji}</div>
+                  <Upload className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <span className="text-xs text-blue-600 dark:text-blue-400">Upload</span>
+                </button>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleImageSelect}
+                className="hidden"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              {imagePreview ? "Click × to remove" : "Or keep emoji"}
+            </p>
+          </div>
+
+          {/* Name Field */}
+          <div className="flex-1">
+            <label className="block text-sm font-semibold mb-2">
+              Character Name
+            </label>
+            <input
+              type="text"
+              value={editableName}
+              onChange={(e) => setEditableName(e.target.value)}
+              placeholder="Enter character name..."
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            />
+            <p className="text-xs text-muted-foreground mt-2">
+              💡 The name updates automatically everywhere it appears (shown as <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-1 rounded text-xs">highlighted</span>)
+            </p>
+          </div>
         </div>
-      )}
+      </div>
 
       {/* Progress bar */}
       <div className="space-y-2">

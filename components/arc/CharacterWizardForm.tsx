@@ -20,6 +20,7 @@ export function CharacterWizardForm({
 }: CharacterWizardFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(isFromAI); // Loading state for AI data
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const isEditMode = !!characterName;
   const [aiData, setAiData] = useState<any>(null);
@@ -89,6 +90,16 @@ export function CharacterWizardForm({
           : String(aiData.psychologyTraits);
         formData.append("psychologyTraits", traitsString);
       }
+      
+      // Include bio from AI if available
+      if (aiData?.bio) {
+        formData.append("bio", aiData.bio);
+      }
+      
+      // Include image if uploaded
+      if (imageFile) {
+        formData.append("image", imageFile);
+      }
 
       // Submit to server action
       await action(formData);
@@ -125,6 +136,7 @@ export function CharacterWizardForm({
         onSave={handleSave} 
         characterName={currentName || aiData?.name || characterName}
         initialData={loadedInitialData}
+        onImageChange={(file) => setImageFile(file)}
         key={isFromAI ? 'ai-wizard' : 'manual-wizard'} // Force remount with AI data
       />
       {isSubmitting && (

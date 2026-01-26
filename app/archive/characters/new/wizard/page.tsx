@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { CharacterWizardForm } from "@/components/arc/CharacterWizardForm";
+import { saveImageUpload } from "@/lib/uploads";
 
 async function createCharacterFromWizard(formData: FormData) {
   "use server";
@@ -15,6 +16,8 @@ async function createCharacterFromWizard(formData: FormData) {
   const name = String(formData.get("name") || "");
   const wizardDataString = String(formData.get("wizardData") || "{}");
   const psychologyTraits = String(formData.get("psychologyTraits") || "");
+  const bio = String(formData.get("bio") || "");
+  const imageFile = formData.get("image") as File | null;
 
   if (!name.trim()) {
     throw new Error("Character name is required");
@@ -25,6 +28,12 @@ async function createCharacterFromWizard(formData: FormData) {
     wizardData = JSON.parse(wizardDataString);
   } catch (e) {
     wizardData = {};
+  }
+
+  // Upload image if provided
+  let imageUrl: string | null = null;
+  if (imageFile && imageFile.size > 0) {
+    imageUrl = await saveImageUpload(imageFile, "character");
   }
 
   // Get the highest order value to append to the end
@@ -39,6 +48,8 @@ async function createCharacterFromWizard(formData: FormData) {
   await prisma.character.create({
     data: {
       name,
+      bio: bio || undefined,
+      imageUrl: imageUrl || undefined,
       storyId: currentStory.id,
       wizardData,
       psychologyTraits,

@@ -102,7 +102,8 @@ Examples:
 IMPORTANT: Return a JSON object with this EXACT structure:
 {
   "name": "Character Name",
-  "psychologyTraits": ["trait-id-1", "trait-id-2"],
+  "bio": "A compelling 2-3 sentence bio describing the character's essence, role, and what makes them interesting",
+  "psychologyTraits": ["trait-id-1", "trait-id-2", "trait-id-3", "trait-id-4", "trait-id-5"],
   "wizardData": {
     "character_type_type": "protagonist",
     "character_type_type_notes": "...",
@@ -112,6 +113,8 @@ IMPORTANT: Return a JSON object with this EXACT structure:
   },
   "reasoning": "Brief explanation of how this character balances the cast"
 }
+
+IMPORTANT: Select 4-6 psychology traits that work together cohesively. Choose traits from different categories (personality, attachment, values, behavioral, cognitive) to create a well-rounded character. Avoid selecting conflicting traits unless it's intentional for character complexity.
 
 Available psychology trait IDs: ${PSYCHOLOGY_TRAITS.map((t) => t.id).join(", ")}
 
@@ -176,6 +179,7 @@ Generate a fully developed character following the Frank Daniel Method. Provide 
       const createdCharacter = await prisma.character.create({
         data: {
           name: generatedCharacter.name,
+          bio: generatedCharacter.bio || "",
           storyId: currentStory.id,
           wizardData: generatedCharacter.wizardData,
           psychologyTraits: Array.isArray(generatedCharacter.psychologyTraits)

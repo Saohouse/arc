@@ -19,7 +19,27 @@ type Character = {
   order: number;
   createdAt: Date;
   updatedAt: Date;
+  wizardData?: any;
 };
+
+// Get emoji based on character type from wizard data
+function getCharacterEmoji(character: Character): string {
+  if (!character.wizardData) return "⭐";
+  
+  const wizardData = character.wizardData as Record<string, string>;
+  const characterType = wizardData["character_type_type"] || "other";
+  
+  const typeEmojis: Record<string, string> = {
+    protagonist: "🦸",
+    antagonist: "😈",
+    mentor: "🧙",
+    support: "🤝",
+    love_interest: "💖",
+    other: "⭐"
+  };
+  
+  return typeEmojis[characterType] || "⭐";
+}
 
 type SortMode = "custom" | "alphabetical" | "date-created";
 
@@ -99,8 +119,8 @@ function CharactersList({ storyId, characters, tagColorMap }: CharactersListProp
                   loading="lazy"
                 />
               ) : (
-                <div className="h-20 w-20 rounded-lg border border-dashed flex items-center justify-center text-2xl flex-shrink-0">
-                  👤
+                <div className="h-20 w-20 rounded-lg border border-dashed flex items-center justify-center text-3xl flex-shrink-0 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20">
+                  {getCharacterEmoji(character)}
                 </div>
               )}
             </>
@@ -157,8 +177,8 @@ function CharactersList({ storyId, characters, tagColorMap }: CharactersListProp
               loading="lazy"
             />
           ) : (
-            <div className="h-30 w-30 rounded-lg border border-dashed flex items-center justify-center text-4xl">
-              👤
+            <div className="h-30 w-30 rounded-lg border border-dashed flex items-center justify-center text-5xl bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20">
+              {getCharacterEmoji(character)}
             </div>
           )}
           <div className="w-full">

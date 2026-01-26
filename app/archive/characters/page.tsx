@@ -20,6 +20,7 @@ export default async function CharactersPage() {
         order: true,
         createdAt: true,
         updatedAt: true,
+        wizardData: true,
       },
     }),
     prisma.tag.findMany({
