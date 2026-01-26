@@ -21,6 +21,7 @@ export function LocationCreateForm({
   createAction,
 }: LocationCreateFormProps) {
   const [overview, setOverview] = useState("");
+  const [selectedLocationType, setSelectedLocationType] = useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -28,6 +29,27 @@ export function LocationCreateForm({
     formData.set("overview", overview); // Use the rich text content
     await createAction(formData);
   };
+
+  // Filter parent locations based on selected type
+  const getFilteredParentLocations = () => {
+    if (!selectedLocationType) return allLocations; // Standalone can be anywhere
+
+    switch (selectedLocationType) {
+      case "country":
+        return []; // Countries cannot have parents
+      case "province":
+        return allLocations.filter((loc) => loc.locationType === "country");
+      case "city":
+        return allLocations.filter((loc) => loc.locationType === "province"); // Cities only in provinces
+      case "town":
+        return allLocations.filter((loc) => loc.locationType === "city");
+      default:
+        return allLocations;
+    }
+  };
+
+  const filteredLocations = getFilteredParentLocations();
+  const canHaveParent = selectedLocationType !== "country";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -46,6 +68,8 @@ export function LocationCreateForm({
           Location Type
           <select
             name="locationType"
+            value={selectedLocationType}
+            onChange={(e) => setSelectedLocationType(e.target.value)}
             className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
           >
             <option value="">Standalone location</option>
@@ -60,10 +84,17 @@ export function LocationCreateForm({
           Parent Location
           <select
             name="parentLocationId"
-            className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+            disabled={!canHaveParent}
+            className={`mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm ${
+              !canHaveParent ? "opacity-50 cursor-not-allowed" : ""
+            }`}
           >
-            <option value="">None (top-level)</option>
-            {allLocations.map((loc) => (
+            <option value="">
+              {selectedLocationType === "country" 
+                ? "Countries are top-level" 
+                : "None (top-level)"}
+            </option>
+            {filteredLocations.map((loc) => (
               <option key={loc.id} value={loc.id}>
                 {loc.locationType === "country" && "🌍 "}
                 {loc.locationType === "province" && "🏛️ "}

@@ -186,19 +186,23 @@ function CharactersList({ storyId, characters, tagColorMap }: CharactersListProp
         className="block rounded-lg border transition hover:border-foreground/30 hover:bg-muted/50 p-4"
       >
         <div className="flex flex-col items-center text-center gap-3">
-          {character.imageUrl ? (
-            <Image
-              src={character.imageUrl}
-              alt={character.name}
-              width={120}
-              height={120}
-              className="h-30 w-30 rounded-lg object-cover"
-              loading="lazy"
-            />
-          ) : (
-            <div className={`h-30 w-30 rounded-lg border border-dashed flex items-center justify-center text-5xl bg-gradient-to-br ${getCharacterGradient(character)}`}>
-              {getCharacterEmoji(character)}
-            </div>
+          {!isCompact && (
+            <>
+              {character.imageUrl ? (
+                <Image
+                  src={character.imageUrl}
+                  alt={character.name}
+                  width={120}
+                  height={120}
+                  className="h-30 w-30 rounded-lg object-cover"
+                  loading="lazy"
+                />
+              ) : (
+                <div className={`h-30 w-30 rounded-lg border border-dashed flex items-center justify-center text-5xl bg-gradient-to-br ${getCharacterGradient(character)}`}>
+                  {getCharacterEmoji(character)}
+                </div>
+              )}
+            </>
           )}
           <div className="w-full">
             <div className="font-semibold text-base truncate">
@@ -209,7 +213,7 @@ function CharactersList({ storyId, characters, tagColorMap }: CharactersListProp
                 {character.title}
               </div>
             ) : null}
-            {character.tags && (
+            {character.tags && !isCompact && (
               <div className="mt-2 flex flex-wrap gap-1 justify-center">
                 {parseTagsString(character.tags).slice(0, 3).map((tag) => (
                   <Tag 
@@ -313,7 +317,7 @@ function CharactersList({ storyId, characters, tagColorMap }: CharactersListProp
             }`}
             title={isCompact ? "Show photos" : "Hide photos"}
           >
-            Hide Photos
+            {isCompact ? "Show Photos" : "Hide Photos"}
           </button>
         </div>
       </div>
