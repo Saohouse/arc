@@ -144,11 +144,18 @@ export default async function LocationPage({ params }: LocationPageProps) {
         </div>
 
         <div className="space-y-6">
-          <section className="rounded-lg border p-4">
-            <div className="text-sm font-semibold">Overview</div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {location.overview || "No overview yet."}
-            </p>
+          <section className="rounded-lg border p-6">
+            <h2 className="text-base font-semibold mb-4">Overview</h2>
+            {location.overview ? (
+              <div 
+                className="prose prose-sm max-w-none text-muted-foreground"
+                dangerouslySetInnerHTML={{ __html: location.overview }}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground italic">
+                No overview yet.
+              </p>
+            )}
           </section>
 
           <section className="rounded-lg border p-4">
