@@ -163,12 +163,12 @@
   
   .glass-strong {
     backdrop-filter: blur(60px);
-    background-color: rgba(255, 255, 255, 0.9);
+    background-color: rgba(255, 255, 255, 0.98);
     border: 1px solid rgba(255, 255, 255, 0.3);
   }
   
   .dark .glass-strong {
-    background-color: rgba(0, 0, 0, 0.7);
+    background-color: rgba(15, 15, 20, 0.95);
     border-color: rgba(255, 255, 255, 0.15);
   }
 

@@ -177,18 +177,18 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
         {/* Portrait Section */}
         <div className="space-y-3">
           {character.imageUrl ? (
-            <div className="overflow-hidden rounded-lg border relative w-full aspect-[3/4] max-h-80 lg:h-auto">
+            <div className="overflow-hidden rounded-lg border relative w-full aspect-square max-w-md mx-auto">
               <Image
                 src={character.imageUrl}
                 alt={character.name}
                 fill
                 className="object-cover"
-                sizes="(max-width: 1024px) 100vw, 280px"
+                sizes="(max-width: 1024px) min(100vw, 448px), 280px"
                 priority
               />
             </div>
           ) : (
-            <div className={`relative w-full aspect-[3/4] max-h-80 lg:h-auto rounded-lg border-2 border-dashed border-purple-300 dark:border-purple-700 bg-gradient-to-br ${getCharacterGradient(character.wizardData)} flex items-center justify-center overflow-hidden`}>
+            <div className={`relative w-full aspect-square max-w-md mx-auto rounded-lg border-2 border-dashed border-purple-300 dark:border-purple-700 bg-gradient-to-br ${getCharacterGradient(character.wizardData)} flex items-center justify-center overflow-hidden`}>
               <div className="absolute inset-0 bg-gradient-to-br from-transparent to-black/5 dark:to-white/5" />
               <span className="text-[120px] sm:text-[150px] lg:text-[180px] leading-none relative z-10 drop-shadow-lg">{getCharacterEmoji(character.wizardData)}</span>
             </div>
