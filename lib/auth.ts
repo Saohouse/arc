@@ -74,7 +74,7 @@ export async function requireRole(role: "viewer" | "editor" | "admin" | "owner")
   
   // Get current story from cookie
   const cookieStore = await cookies();
-  const storyId = cookieStore.get("currentStoryId")?.value;
+  const storyId = cookieStore.get("arc_current_story")?.value;
   
   if (!storyId) {
     throw new Error("No story selected");

@@ -73,6 +73,18 @@ function LocationsList({ storyId, locations, tagColorMap }: LocationsListProps) 
     setExpandedNodes(newExpanded);
   };
 
+  const collapseAll = () => {
+    setExpandedNodes(new Set());
+  };
+
+  const expandAll = () => {
+    const allIds = locations.map(l => l.id);
+    setExpandedNodes(new Set(allIds));
+  };
+
+  const allExpanded = expandedNodes.size === locations.length;
+  const allCollapsed = expandedNodes.size === 0;
+
   // Build tree structure: organize locations into parent-child hierarchy
   const locationTree = useMemo(() => {
     // Create a map for quick lookup
@@ -271,6 +283,15 @@ function LocationsList({ storyId, locations, tagColorMap }: LocationsListProps) 
               Date
             </button>
           </div>
+          {hierarchyEnabled && (
+            <button
+              onClick={allExpanded ? collapseAll : expandAll}
+              className="inline-flex items-center justify-center rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-muted hover:border-foreground/30 hover:scale-[1.02] hover:shadow-md transition-all touch-manipulation whitespace-nowrap"
+              title={allExpanded ? "Collapse all locations" : "Expand all locations"}
+            >
+              {allExpanded ? "Collapse All" : "Expand All"}
+            </button>
+          )}
           <button
             onClick={() => setIsCompact(!isCompact)}
             className="inline-flex items-center justify-center rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-muted hover:border-foreground/30 hover:scale-[1.02] hover:shadow-md transition-all touch-manipulation whitespace-nowrap"

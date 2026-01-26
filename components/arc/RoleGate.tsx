@@ -17,7 +17,7 @@ export async function RoleGate({ children, allowedRoles, fallback }: RoleGatePro
 
   // Get current story from cookie
   const cookieStore = await cookies();
-  const storyId = cookieStore.get("currentStoryId")?.value;
+  const storyId = cookieStore.get("arc_current_story")?.value;
   
   if (!storyId) {
     return fallback || null;

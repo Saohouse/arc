@@ -168,6 +168,13 @@ model Location {
   locationType     String? // "country", "province", "city", "town", or null for legacy/standalone
   parentLocationId String? // References parent location
   
+  // Map visualization fields
+  mapX         Float?  // X coordinate on map canvas
+  mapY         Float?  // Y coordinate on map canvas
+  mapZoom      Int?    // Zoom level where location appears (0=world, 1=country, 2=province, 3=city)
+  iconType     String  @default("emoji") // "emoji", "svg-ref", "svg-inline", "custom-upload", "ai-generated"
+  iconData     String? // emoji character, iconify reference, svg code, or image URL
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
