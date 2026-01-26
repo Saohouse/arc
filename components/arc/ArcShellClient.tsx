@@ -54,10 +54,10 @@ export function ArcShellClient({
       {/* Logo */}
       <Link 
         href="/" 
-        className="mb-8 block group"
+        className="mb-2 block group"
         onClick={() => setIsMobileMenuOpen(false)}
       >
-        <div className="text-2xl font-bold tracking-tight text-foreground/90 group-hover:text-foreground transition-colors">
+        <div className="text-2xl font-bold tracking-tight text-foreground group-hover:text-foreground transition-colors">
           ARC
         </div>
         <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground mt-1.5 group-hover:text-accent transition-colors">
@@ -66,11 +66,11 @@ export function ArcShellClient({
       </Link>
 
       {/* Story Selector */}
-      <div className="mb-6">
+      <div className="mb-3">
         <StorySelector currentStory={currentStory} allStories={allStories} />
       </div>
 
-      <Separator className="my-6 bg-border/50" />
+      <Separator className="my-3 bg-border/50" />
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1.5">
@@ -90,7 +90,7 @@ export function ArcShellClient({
       {/* User Menu */}
       {currentUser && (
         <>
-          <Separator className="my-6 bg-border/50" />
+          <Separator className="my-3 bg-border/50" />
           <UserMenu user={currentUser} />
         </>
       )}
@@ -109,7 +109,7 @@ export function ArcShellClient({
         <div className="lg:hidden fixed top-0 left-0 right-0 z-40 glass-strong border-b border-border/50">
           <div className="flex items-center justify-between px-4 py-3 safe-area-inset-top">
             <Link href="/" className="flex items-center gap-2">
-              <span className="text-xl font-bold tracking-tight text-foreground/90">
+              <span className="text-xl font-bold tracking-tight text-foreground">
                 ARC
               </span>
             </Link>
@@ -147,7 +147,7 @@ export function ArcShellClient({
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 px-4 py-4 sm:px-6 sm:py-6 lg:px-10 lg:py-10 max-w-7xl pt-20 lg:pt-10">
+        <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10 max-w-7xl mt-16 lg:mt-0">
           {children}
         </main>
       </div>

@@ -42,7 +42,7 @@ export default async function CharactersPage() {
         <RoleGate allowedRoles={["editor", "admin"]}>
           <Link
             href="/archive/characters/new"
-            className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background hover:bg-foreground/90 touch-manipulation whitespace-nowrap"
+            className="inline-flex items-center justify-center rounded-lg bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:bg-foreground/90 touch-manipulation whitespace-nowrap transition-colors"
           >
             New character
           </Link>
