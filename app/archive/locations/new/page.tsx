@@ -32,10 +32,15 @@ async function createLocation(formData: FormData) {
   const iconData = String(formData.get("iconData") ?? "📍");
 
   const imageFile = formData.get("image");
-  const imageUrl =
-    imageFile instanceof File
-      ? await saveImageUpload(imageFile, "location")
-      : null;
+  const imageData = formData.get("image_data"); // Cropped image data URL
+
+  let imageUrl: string | null = null;
+  // Handle cropped image (data URL) first, then fall back to regular file upload
+  if (imageData && typeof imageData === 'string' && imageData.startsWith('data:')) {
+    imageUrl = await saveImageUpload(imageData, "location");
+  } else if (imageFile instanceof File && imageFile.size > 0) {
+    imageUrl = await saveImageUpload(imageFile, "location");
+  }
 
   const location = await prisma.location.create({
     data: {

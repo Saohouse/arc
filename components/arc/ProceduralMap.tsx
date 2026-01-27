@@ -54,6 +54,16 @@ type Region = {
   children: MapNode[];
 };
 
+// Terrain feature types
+type TerrainFeature = {
+  type: 'tree' | 'mountain' | 'rock' | 'lake' | 'forest';
+  x: number;
+  y: number;
+  size: number;
+  seed: number;
+  variant: number; // For visual variation
+};
+
 // Helper to detect coastal locations from their description
 // Returns false for explicitly inland locations, true for coastal locations
 function isCoastalLocation(summary: string | null, overview: string | null, tags: string): boolean {
@@ -160,6 +170,7 @@ export function ProceduralMap({ nodes, links, isMaximized = false, onToggleMaxim
   const [mapSeed, setMapSeed] = useState(0); // For regeneration
   const [nodePositions, setNodePositions] = useState<Map<string, { x: number; y: number }>>(new Map());
   const [labelOffsets, setLabelOffsets] = useState<Map<string, { x: number; y: number }>>(new Map());
+  const [terrainFeatures, setTerrainFeatures] = useState<TerrainFeature[]>([]);
   
   // Dev mode state
   const [devMode, setDevMode] = useState(false);
@@ -195,6 +206,30 @@ export function ProceduralMap({ nodes, links, isMaximized = false, onToggleMaxim
       x: sumX / (6 * area),
       y: sumY / (6 * area),
     };
+  };
+
+  // Helper: Check if a point is inside a polygon (ray casting algorithm)
+  const isPointInPolygon = (px: number, py: number, polygon: Point[]): boolean => {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i].x, yi = polygon[i].y;
+      const xj = polygon[j].x, yj = polygon[j].y;
+      if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) {
+        inside = !inside;
+      }
+    }
+    return inside;
+  };
+
+  // Helper: Check if point is too close to any node position
+  const isTooCloseToNode = (px: number, py: number, minDist: number): boolean => {
+    for (const node of nodes) {
+      const pos = nodePositions.get(node.id) || { x: node.x, y: node.y };
+      const dx = px - pos.x;
+      const dy = py - pos.y;
+      if (Math.sqrt(dx * dx + dy * dy) < minDist) return true;
+    }
+    return false;
   };
 
   // Helper: Find where a ray from center intersects the polygon boundary
@@ -486,9 +521,194 @@ export function ProceduralMap({ nodes, links, isMaximized = false, onToggleMaxim
       generatedRegions.push({ node: province, shape: points, children });
     });
     
+    // TERRAIN GENERATION
+    const terrain: TerrainFeature[] = [];
+    const terrainSeed = mapSeed * 1000 + 42;
+    
+    // Get the country shapes for boundary checking
+    const countryShapes = generatedRegions
+      .filter(r => r.node.locationType === 'country')
+      .map(r => r.shape);
+    
+    // Helper to check if point is inside any country
+    const isInsideLand = (x: number, y: number): boolean => {
+      return countryShapes.some(shape => isPointInPolygon(x, y, shape));
+    };
+    
+    // Helper to check distance from roads
+    const getDistanceFromRoads = (px: number, py: number): number => {
+      let minDist = Infinity;
+      links.forEach(link => {
+        const fromPos = repositionedNodes.get(link.from.id) || { x: link.from.x, y: link.from.y };
+        const toPos = repositionedNodes.get(link.to.id) || { x: link.to.x, y: link.to.y };
+        
+        // Distance from point to line segment
+        const dx = toPos.x - fromPos.x;
+        const dy = toPos.y - fromPos.y;
+        const lengthSq = dx * dx + dy * dy;
+        
+        if (lengthSq === 0) {
+          const d = Math.sqrt((px - fromPos.x) ** 2 + (py - fromPos.y) ** 2);
+          minDist = Math.min(minDist, d);
+        } else {
+          let t = Math.max(0, Math.min(1, ((px - fromPos.x) * dx + (py - fromPos.y) * dy) / lengthSq));
+          const closestX = fromPos.x + t * dx;
+          const closestY = fromPos.y + t * dy;
+          const d = Math.sqrt((px - closestX) ** 2 + (py - closestY) ** 2);
+          minDist = Math.min(minDist, d);
+        }
+      });
+      return minDist;
+    };
+    
+    // Generate terrain based on country bounds
+    if (countryShapes.length > 0) {
+      // Get overall bounds
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      countryShapes.forEach(shape => {
+        shape.forEach(p => {
+          minX = Math.min(minX, p.x);
+          maxX = Math.max(maxX, p.x);
+          minY = Math.min(minY, p.y);
+          maxY = Math.max(maxY, p.y);
+        });
+      });
+      
+      // Grid-based placement for even distribution
+      const gridSize = 35;
+      
+      for (let gx = minX; gx < maxX; gx += gridSize) {
+        for (let gy = minY; gy < maxY; gy += gridSize) {
+          // Add some randomness to grid position
+          const cellSeed = terrainSeed + Math.floor(gx) * 100 + Math.floor(gy);
+          const offsetX = (seededRandom(cellSeed) - 0.5) * gridSize * 0.8;
+          const offsetY = (seededRandom(cellSeed + 1) - 0.5) * gridSize * 0.8;
+          const px = gx + offsetX;
+          const py = gy + offsetY;
+          
+          // Skip if not inside land
+          if (!isInsideLand(px, py)) continue;
+          
+          // Skip if too close to a node
+          const nodeMinDist = 45;
+          let tooClose = false;
+          for (const node of nodes) {
+            const pos = repositionedNodes.get(node.id) || { x: node.x, y: node.y };
+            const dx = px - pos.x;
+            const dy = py - pos.y;
+            if (Math.sqrt(dx * dx + dy * dy) < nodeMinDist) {
+              tooClose = true;
+              break;
+            }
+          }
+          if (tooClose) continue;
+          
+          // Check distance from roads
+          const roadDist = getDistanceFromRoads(px, py);
+          
+          // Determine terrain type based on position and randomness
+          const featureRoll = seededRandom(cellSeed + 2);
+          const sizeRoll = seededRandom(cellSeed + 3);
+          const variantRoll = Math.floor(seededRandom(cellSeed + 4) * 3);
+          
+          // Near roads: mostly empty or small trees
+          if (roadDist < 25) {
+            // Skip most terrain near roads for cleaner paths
+            if (featureRoll > 0.3) continue;
+            terrain.push({
+              type: 'tree',
+              x: px,
+              y: py,
+              size: 6 + sizeRoll * 4,
+              seed: cellSeed,
+              variant: variantRoll,
+            });
+          }
+          // Medium distance: mix of trees and rocks
+          else if (roadDist < 60) {
+            if (featureRoll < 0.4) {
+              terrain.push({
+                type: 'tree',
+                x: px,
+                y: py,
+                size: 8 + sizeRoll * 6,
+                seed: cellSeed,
+                variant: variantRoll,
+              });
+            } else if (featureRoll < 0.5) {
+              terrain.push({
+                type: 'rock',
+                x: px,
+                y: py,
+                size: 4 + sizeRoll * 4,
+                seed: cellSeed,
+                variant: variantRoll,
+              });
+            }
+          }
+          // Far from roads: forests, mountains, lakes
+          else {
+            if (featureRoll < 0.35) {
+              // Forest cluster
+              terrain.push({
+                type: 'forest',
+                x: px,
+                y: py,
+                size: 15 + sizeRoll * 15,
+                seed: cellSeed,
+                variant: variantRoll,
+              });
+            } else if (featureRoll < 0.45) {
+              // Single tree
+              terrain.push({
+                type: 'tree',
+                x: px,
+                y: py,
+                size: 10 + sizeRoll * 8,
+                seed: cellSeed,
+                variant: variantRoll,
+              });
+            } else if (featureRoll < 0.52) {
+              // Mountain
+              terrain.push({
+                type: 'mountain',
+                x: px,
+                y: py,
+                size: 20 + sizeRoll * 25,
+                seed: cellSeed,
+                variant: variantRoll,
+              });
+            } else if (featureRoll < 0.56) {
+              // Lake (less common)
+              terrain.push({
+                type: 'lake',
+                x: px,
+                y: py,
+                size: 15 + sizeRoll * 20,
+                seed: cellSeed,
+                variant: variantRoll,
+              });
+            } else if (featureRoll < 0.62) {
+              // Rocks
+              terrain.push({
+                type: 'rock',
+                x: px,
+                y: py,
+                size: 5 + sizeRoll * 6,
+                seed: cellSeed,
+                variant: variantRoll,
+              });
+            }
+            // Rest is empty grass/plains
+          }
+        }
+      }
+    }
+    
+    setTerrainFeatures(terrain);
     setRegions(generatedRegions);
     setNodePositions(repositionedNodes);
-  }, [nodes, mapSeed, shapeParams]); // Regenerate when mapSeed or params change
+  }, [nodes, links, mapSeed, shapeParams]); // Regenerate when mapSeed or params change
 
   // Label collision detection and avoidance
   useEffect(() => {
@@ -1155,6 +1375,63 @@ export function ProceduralMap({ nodes, links, isMaximized = false, onToggleMaxim
           <filter id="label-shadow">
             <feDropShadow dx="1" dy="1" stdDeviation="2" floodOpacity="0.3" />
           </filter>
+          
+          {/* Terrain gradients for Pokemon-style graphics */}
+          {/* Tree gradients */}
+          <linearGradient id="tree-pine-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#3D7A3D" />
+            <stop offset="50%" stopColor="#2D5A27" />
+            <stop offset="100%" stopColor="#1A3A1A" />
+          </linearGradient>
+          <linearGradient id="tree-deciduous-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#4ADE80" />
+            <stop offset="40%" stopColor="#22C55E" />
+            <stop offset="100%" stopColor="#15803D" />
+          </linearGradient>
+          <linearGradient id="tree-dark-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#2D5A27" />
+            <stop offset="100%" stopColor="#14532D" />
+          </linearGradient>
+          
+          {/* Mountain gradients */}
+          <linearGradient id="mountain-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#9CA3AF" />
+            <stop offset="50%" stopColor="#6B7280" />
+            <stop offset="100%" stopColor="#4B5563" />
+          </linearGradient>
+          <linearGradient id="mountain-shade-grad" x1="100%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="rgba(0,0,0,0)" />
+            <stop offset="100%" stopColor="rgba(0,0,0,0.3)" />
+          </linearGradient>
+          <linearGradient id="snow-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#FFFFFF" />
+            <stop offset="100%" stopColor="#E5E7EB" />
+          </linearGradient>
+          
+          {/* Rock gradients */}
+          <linearGradient id="rock-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#D1D5DB" />
+            <stop offset="50%" stopColor="#9CA3AF" />
+            <stop offset="100%" stopColor="#6B7280" />
+          </linearGradient>
+          
+          {/* Lake gradients */}
+          <radialGradient id="lake-grad" cx="30%" cy="30%" r="70%">
+            <stop offset="0%" stopColor="#93C5FD" />
+            <stop offset="60%" stopColor="#60A5FA" />
+            <stop offset="100%" stopColor="#3B82F6" />
+          </radialGradient>
+          <linearGradient id="lake-shine" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="rgba(255,255,255,0.6)" />
+            <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+          </linearGradient>
+          
+          {/* Trunk gradient */}
+          <linearGradient id="trunk-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#92400E" />
+            <stop offset="50%" stopColor="#78350F" />
+            <stop offset="100%" stopColor="#451A03" />
+          </linearGradient>
         </defs>
 
         {/* Water background - fills entire canvas */}
@@ -1206,7 +1483,281 @@ export function ProceduralMap({ nodes, links, isMaximized = false, onToggleMaxim
             );
           })}
 
-        {/* Layer 3: Roads (below icons and labels) */}
+        {/* Layer 3: Terrain Features (trees, mountains, rocks, lakes) - Pokemon style */}
+        {terrainFeatures.map((feature, index) => {
+          const key = `terrain-${feature.type}-${index}`;
+          
+          if (feature.type === 'tree') {
+            // Detailed single tree - Pokemon style (no floating shadows)
+            const s = feature.size;
+            const isDeciduous = feature.variant === 0;
+            const isPine = feature.variant === 1;
+            
+            if (isDeciduous) {
+              // Lush deciduous tree with layered canopy
+              return (
+                <g key={key} style={{ pointerEvents: 'none' }}>
+                  {/* Trunk with bark texture */}
+                  <path
+                    d={`M ${feature.x - 2.5} ${feature.y + 2} 
+                        C ${feature.x - 3} ${feature.y - s * 0.15} ${feature.x - 2} ${feature.y - s * 0.3} ${feature.x - 1.5} ${feature.y - s * 0.35}
+                        L ${feature.x + 1.5} ${feature.y - s * 0.35}
+                        C ${feature.x + 2} ${feature.y - s * 0.3} ${feature.x + 3} ${feature.y - s * 0.15} ${feature.x + 2.5} ${feature.y + 2} Z`}
+                    fill="url(#trunk-grad)"
+                  />
+                  {/* Trunk detail */}
+                  <line x1={feature.x - 0.5} y1={feature.y - s * 0.1} x2={feature.x - 1} y2={feature.y + 1} stroke="#451A03" strokeWidth="0.5" opacity="0.4" />
+                  {/* Back foliage - darkest */}
+                  <ellipse cx={feature.x + s * 0.12} cy={feature.y - s * 0.45} rx={s * 0.42} ry={s * 0.38} fill="#14532D" />
+                  <ellipse cx={feature.x - s * 0.15} cy={feature.y - s * 0.52} rx={s * 0.38} ry={s * 0.35} fill="#166534" />
+                  {/* Middle foliage */}
+                  <ellipse cx={feature.x} cy={feature.y - s * 0.55} rx={s * 0.48} ry={s * 0.4} fill="#15803D" />
+                  <ellipse cx={feature.x - s * 0.18} cy={feature.y - s * 0.6} rx={s * 0.35} ry={s * 0.32} fill="#16A34A" />
+                  <ellipse cx={feature.x + s * 0.15} cy={feature.y - s * 0.58} rx={s * 0.32} ry={s * 0.28} fill="#22C55E" />
+                  {/* Front highlight leaves */}
+                  <ellipse cx={feature.x - s * 0.08} cy={feature.y - s * 0.68} rx={s * 0.22} ry={s * 0.18} fill="#4ADE80" />
+                  <ellipse cx={feature.x + s * 0.1} cy={feature.y - s * 0.72} rx={s * 0.15} ry={s * 0.12} fill="#86EFAC" opacity="0.8" />
+                </g>
+              );
+            } else if (isPine) {
+              // Detailed pine tree with multiple tiers
+              return (
+                <g key={key} style={{ pointerEvents: 'none' }}>
+                  {/* Trunk */}
+                  <rect x={feature.x - 2} y={feature.y - s * 0.05} width={4} height={s * 0.3} fill="url(#trunk-grad)" rx="1" />
+                  {/* Bottom tier - widest, darkest */}
+                  <polygon
+                    points={`${feature.x},${feature.y - s * 0.15} ${feature.x - s * 0.38},${feature.y + s * 0.1} ${feature.x + s * 0.38},${feature.y + s * 0.1}`}
+                    fill="#14532D"
+                  />
+                  {/* Second tier */}
+                  <polygon
+                    points={`${feature.x},${feature.y - s * 0.4} ${feature.x - s * 0.32},${feature.y - s * 0.05} ${feature.x + s * 0.32},${feature.y - s * 0.05}`}
+                    fill="#166534"
+                  />
+                  {/* Third tier */}
+                  <polygon
+                    points={`${feature.x},${feature.y - s * 0.65} ${feature.x - s * 0.26},${feature.y - s * 0.3} ${feature.x + s * 0.26},${feature.y - s * 0.3}`}
+                    fill="#15803D"
+                  />
+                  {/* Top tier - smallest, brightest */}
+                  <polygon
+                    points={`${feature.x},${feature.y - s * 0.9} ${feature.x - s * 0.18},${feature.y - s * 0.55} ${feature.x + s * 0.18},${feature.y - s * 0.55}`}
+                    fill="#16A34A"
+                  />
+                  {/* Highlight on right side */}
+                  <polygon
+                    points={`${feature.x},${feature.y - s * 0.9} ${feature.x + s * 0.05},${feature.y - s * 0.6} ${feature.x + s * 0.15},${feature.y - s * 0.58}`}
+                    fill="#22C55E"
+                    opacity="0.6"
+                  />
+                  <polygon
+                    points={`${feature.x},${feature.y - s * 0.65} ${feature.x + s * 0.08},${feature.y - s * 0.38} ${feature.x + s * 0.22},${feature.y - s * 0.32}`}
+                    fill="#22C55E"
+                    opacity="0.5"
+                  />
+                </g>
+              );
+            } else {
+              // Bush/shrub
+              return (
+                <g key={key} style={{ pointerEvents: 'none' }}>
+                  <ellipse cx={feature.x + s * 0.08} cy={feature.y - s * 0.05} rx={s * 0.4} ry={s * 0.3} fill="#166534" />
+                  <ellipse cx={feature.x - s * 0.1} cy={feature.y - s * 0.12} rx={s * 0.38} ry={s * 0.28} fill="#15803D" />
+                  <ellipse cx={feature.x} cy={feature.y - s * 0.18} rx={s * 0.32} ry={s * 0.22} fill="#16A34A" />
+                  <ellipse cx={feature.x - s * 0.05} cy={feature.y - s * 0.22} rx={s * 0.18} ry={s * 0.12} fill="#22C55E" opacity="0.7" />
+                </g>
+              );
+            }
+          }
+          
+          if (feature.type === 'forest') {
+            // Forest cluster - individual detailed trees, no dark oval background
+            const s = feature.size;
+            const numTrees = 3 + feature.variant;
+            
+            // Generate tree positions in a natural cluster
+            const treeData = [];
+            for (let i = 0; i < numTrees; i++) {
+              const angle = (i / numTrees) * Math.PI * 2 + seededRandom(feature.seed + i) * 1.2;
+              const dist = s * 0.3 * (0.2 + seededRandom(feature.seed + i + 10) * 0.8);
+              treeData.push({
+                x: feature.x + Math.cos(angle) * dist,
+                y: feature.y + Math.sin(angle) * dist * 0.4,
+                size: s * (0.35 + seededRandom(feature.seed + i + 20) * 0.35),
+                isPine: seededRandom(feature.seed + i + 30) > 0.5,
+              });
+            }
+            // Sort by y for proper depth ordering
+            treeData.sort((a, b) => a.y - b.y);
+            
+            return (
+              <g key={key} style={{ pointerEvents: 'none' }}>
+                {treeData.map((t, i) => {
+                  if (t.isPine) {
+                    // Mini pine tree
+                    return (
+                      <g key={`${key}-t-${i}`}>
+                        <rect x={t.x - 1.5} y={t.y - t.size * 0.05} width={3} height={t.size * 0.25} fill="#78350F" rx="0.5" />
+                        <polygon points={`${t.x},${t.y - t.size * 0.15} ${t.x - t.size * 0.3},${t.y + t.size * 0.08} ${t.x + t.size * 0.3},${t.y + t.size * 0.08}`} fill="#14532D" />
+                        <polygon points={`${t.x},${t.y - t.size * 0.45} ${t.x - t.size * 0.24},${t.y - t.size * 0.08} ${t.x + t.size * 0.24},${t.y - t.size * 0.08}`} fill="#166534" />
+                        <polygon points={`${t.x},${t.y - t.size * 0.72} ${t.x - t.size * 0.18},${t.y - t.size * 0.35} ${t.x + t.size * 0.18},${t.y - t.size * 0.35}`} fill="#15803D" />
+                        <polygon points={`${t.x},${t.y - t.size * 0.72} ${t.x + t.size * 0.05},${t.y - t.size * 0.45} ${t.x + t.size * 0.14},${t.y - t.size * 0.4}`} fill="#22C55E" opacity="0.5" />
+                      </g>
+                    );
+                  } else {
+                    // Mini deciduous tree
+                    return (
+                      <g key={`${key}-t-${i}`}>
+                        <rect x={t.x - 1.5} y={t.y - t.size * 0.15} width={3} height={t.size * 0.28} fill="#78350F" rx="0.5" />
+                        <ellipse cx={t.x + t.size * 0.08} cy={t.y - t.size * 0.32} rx={t.size * 0.32} ry={t.size * 0.28} fill="#14532D" />
+                        <ellipse cx={t.x - t.size * 0.05} cy={t.y - t.size * 0.38} rx={t.size * 0.3} ry={t.size * 0.26} fill="#15803D" />
+                        <ellipse cx={t.x} cy={t.y - t.size * 0.42} rx={t.size * 0.25} ry={t.size * 0.2} fill="#16A34A" />
+                        <ellipse cx={t.x - t.size * 0.05} cy={t.y - t.size * 0.48} rx={t.size * 0.15} ry={t.size * 0.12} fill="#22C55E" opacity="0.7" />
+                      </g>
+                    );
+                  }
+                })}
+              </g>
+            );
+          }
+          
+          if (feature.type === 'mountain') {
+            // Mountain sitting on ground (no floating shadow)
+            const s = feature.size;
+            const h = s * 1.3;
+            const hasSnow = s > 25;
+            const hasPeak2 = feature.variant > 0 && s > 30;
+            
+            return (
+              <g key={key} style={{ pointerEvents: 'none' }}>
+                {/* Secondary peak behind (if large) */}
+                {hasPeak2 && (
+                  <>
+                    <polygon
+                      points={`${feature.x + s * 0.35},${feature.y - h * 0.65} ${feature.x},${feature.y} ${feature.x + s * 0.7},${feature.y}`}
+                      fill="#6B7280"
+                    />
+                    <polygon
+                      points={`${feature.x + s * 0.35},${feature.y - h * 0.65} ${feature.x},${feature.y} ${feature.x + s * 0.35},${feature.y}`}
+                      fill="#4B5563"
+                    />
+                  </>
+                )}
+                
+                {/* Main mountain body - grounded */}
+                <polygon
+                  points={`${feature.x},${feature.y - h} ${feature.x - s * 0.55},${feature.y} ${feature.x + s * 0.55},${feature.y}`}
+                  fill="#9CA3AF"
+                />
+                {/* Left face - darker shading */}
+                <polygon
+                  points={`${feature.x},${feature.y - h} ${feature.x - s * 0.55},${feature.y} ${feature.x - s * 0.05},${feature.y}`}
+                  fill="#6B7280"
+                />
+                {/* Ridge highlights */}
+                <polygon
+                  points={`${feature.x},${feature.y - h} ${feature.x + s * 0.08},${feature.y - h * 0.5} ${feature.x + s * 0.25},${feature.y - h * 0.3} ${feature.x + s * 0.15},${feature.y - h * 0.35}`}
+                  fill="#D1D5DB"
+                  opacity="0.4"
+                />
+                {/* Rocky texture lines */}
+                <path d={`M ${feature.x - s * 0.3} ${feature.y - h * 0.3} L ${feature.x - s * 0.15} ${feature.y - h * 0.5}`} stroke="#4B5563" strokeWidth="1" opacity="0.3" />
+                <path d={`M ${feature.x + s * 0.2} ${feature.y - h * 0.25} L ${feature.x + s * 0.35} ${feature.y - h * 0.15}`} stroke="#6B7280" strokeWidth="1" opacity="0.3" />
+                
+                {/* Snow cap */}
+                {hasSnow && (
+                  <>
+                    <polygon
+                      points={`${feature.x},${feature.y - h} ${feature.x - s * 0.22},${feature.y - h * 0.58} ${feature.x + s * 0.22},${feature.y - h * 0.58}`}
+                      fill="#F9FAFB"
+                    />
+                    {/* Snow drip on left */}
+                    <polygon
+                      points={`${feature.x - s * 0.15},${feature.y - h * 0.58} ${feature.x - s * 0.22},${feature.y - h * 0.42} ${feature.x - s * 0.1},${feature.y - h * 0.52}`}
+                      fill="#F3F4F6"
+                    />
+                    {/* Snow drip on right */}
+                    <polygon
+                      points={`${feature.x + s * 0.1},${feature.y - h * 0.58} ${feature.x + s * 0.18},${feature.y - h * 0.48} ${feature.x + s * 0.08},${feature.y - h * 0.5}`}
+                      fill="#FFFFFF"
+                    />
+                  </>
+                )}
+              </g>
+            );
+          }
+          
+          if (feature.type === 'rock') {
+            // Rock formation - grounded, no floating shadow
+            const s = feature.size;
+            const numRocks = 1 + feature.variant;
+            
+            return (
+              <g key={key} style={{ pointerEvents: 'none' }}>
+                {/* Back rocks (if multiple) */}
+                {numRocks > 1 && (
+                  <>
+                    <ellipse cx={feature.x + s * 0.25} cy={feature.y - s * 0.05} rx={s * 0.32} ry={s * 0.25} fill="#6B7280" />
+                    <ellipse cx={feature.x + s * 0.2} cy={feature.y - s * 0.12} rx={s * 0.12} ry={s * 0.08} fill="#9CA3AF" opacity="0.5" />
+                  </>
+                )}
+                {numRocks > 2 && (
+                  <ellipse cx={feature.x - s * 0.3} cy={feature.y + s * 0.05} rx={s * 0.22} ry={s * 0.18} fill="#9CA3AF" />
+                )}
+                
+                {/* Main rock */}
+                <ellipse cx={feature.x} cy={feature.y} rx={s * 0.45} ry={s * 0.35} fill="#9CA3AF" />
+                {/* Shading */}
+                <ellipse cx={feature.x + s * 0.1} cy={feature.y + s * 0.08} rx={s * 0.35} ry={s * 0.25} fill="#6B7280" opacity="0.5" />
+                {/* Highlight */}
+                <ellipse cx={feature.x - s * 0.12} cy={feature.y - s * 0.1} rx={s * 0.18} ry={s * 0.12} fill="#D1D5DB" opacity="0.6" />
+                {/* Detail crack */}
+                <path d={`M ${feature.x - s * 0.1} ${feature.y + s * 0.15} Q ${feature.x + s * 0.05} ${feature.y} ${feature.x + s * 0.2} ${feature.y + s * 0.1}`} stroke="#4B5563" strokeWidth="0.8" fill="none" opacity="0.4" />
+              </g>
+            );
+          }
+          
+          if (feature.type === 'lake') {
+            // Lake with shore
+            const s = feature.size;
+            const lakePoints: Point[] = [];
+            const numPoints = 10;
+            for (let i = 0; i < numPoints; i++) {
+              const angle = (i / numPoints) * Math.PI * 2;
+              const radiusVariation = 0.75 + seededRandom(feature.seed + i) * 0.5;
+              const r = s * 0.5 * radiusVariation;
+              lakePoints.push({
+                x: feature.x + Math.cos(angle) * r,
+                y: feature.y + Math.sin(angle) * r * 0.5,
+              });
+            }
+            
+            // Shore points
+            const shorePoints: Point[] = lakePoints.map((p) => ({
+              x: feature.x + (p.x - feature.x) * 1.18,
+              y: feature.y + (p.y - feature.y) * 1.18,
+            }));
+            
+            return (
+              <g key={key} style={{ pointerEvents: 'none' }}>
+                {/* Shore/sand */}
+                <path d={pointsToPath(shorePoints, feature.seed, 0)} fill="#D4A574" opacity="0.5" />
+                {/* Water body */}
+                <path d={pointsToPath(lakePoints, feature.seed, 0)} fill="#3B82F6" />
+                {/* Water depth gradient - darker center */}
+                <ellipse cx={feature.x + s * 0.05} cy={feature.y + s * 0.03} rx={s * 0.3} ry={s * 0.15} fill="#2563EB" opacity="0.4" />
+                {/* Light reflection */}
+                <ellipse cx={feature.x - s * 0.15} cy={feature.y - s * 0.08} rx={s * 0.18} ry={s * 0.06} fill="#93C5FD" opacity="0.6" />
+                <ellipse cx={feature.x - s * 0.1} cy={feature.y - s * 0.05} rx={s * 0.08} ry={s * 0.03} fill="#BFDBFE" opacity="0.7" />
+              </g>
+            );
+          }
+          
+          return null;
+        })}
+
+        {/* Layer 4: Roads */}
         {links.map((link, index) => {
           // Use repositioned coordinates for coastal cities
           const fromPos = nodePositions.get(link.from.id) || { x: link.from.x, y: link.from.y };
@@ -1257,7 +1808,7 @@ export function ProceduralMap({ nodes, links, isMaximized = false, onToggleMaxim
           );
         })}
 
-        {/* Layer 4: ALL ICONS (below all labels) */}
+        {/* Layer 5: ALL ICONS (below all labels) */}
         {(() => {
           const zoomScale = viewBox.width / MAP_WIDTH;
           
@@ -1306,7 +1857,7 @@ export function ProceduralMap({ nodes, links, isMaximized = false, onToggleMaxim
           });
         })()}
         
-        {/* Layer 5: COUNTRY LABELS (on top of icons) */}
+        {/* Layer 6: COUNTRY LABELS (on top of icons) */}
         {(() => {
           const zoomScale = viewBox.width / MAP_WIDTH;
           const countryColors = { bg: "#EEF2FF", border: "#4338CA", text: "#312E81" };
@@ -1371,7 +1922,7 @@ export function ProceduralMap({ nodes, links, isMaximized = false, onToggleMaxim
             });
         })()}
         
-        {/* Layer 6: PROVINCE LABELS (on top of country labels) */}
+        {/* Layer 7: PROVINCE LABELS (on top of country labels) */}
         {(() => {
           const zoomScale = viewBox.width / MAP_WIDTH;
           const provinceColors = { bg: "#ECFEFF", border: "#0891B2", text: "#155E75" };
@@ -1435,7 +1986,7 @@ export function ProceduralMap({ nodes, links, isMaximized = false, onToggleMaxim
             });
         })()}
 
-        {/* Layer 7: CITY/TOWN LABELS (topmost layer - always on top of everything) */}
+        {/* Layer 8: CITY/TOWN LABELS (topmost layer - always on top of everything) */}
         {(() => {
           const zoomScale = viewBox.width / MAP_WIDTH;
           

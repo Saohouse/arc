@@ -32,10 +32,15 @@ async function createCharacter(formData: FormData) {
   const homeLocationId = String(formData.get("homeLocationId") ?? "").trim();
 
   const imageFile = formData.get("image");
-  const imageUrl =
-    imageFile instanceof File
-      ? await saveImageUpload(imageFile, "character")
-      : null;
+  const imageData = formData.get("image_data"); // Cropped image data URL
+
+  let imageUrl: string | null = null;
+  // Handle cropped image (data URL) first, then fall back to regular file upload
+  if (imageData && typeof imageData === 'string' && imageData.startsWith('data:')) {
+    imageUrl = await saveImageUpload(imageData, "character");
+  } else if (imageFile instanceof File && imageFile.size > 0) {
+    imageUrl = await saveImageUpload(imageFile, "character");
+  }
 
   const character = await prisma.character.create({
     data: {

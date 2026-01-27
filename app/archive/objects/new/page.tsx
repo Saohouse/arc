@@ -27,10 +27,15 @@ async function createObject(formData: FormData) {
     .join(",");
 
   const imageFile = formData.get("image");
-  const imageUrl =
-    imageFile instanceof File
-      ? await saveImageUpload(imageFile, "object")
-      : null;
+  const imageData = formData.get("image_data"); // Cropped image data URL
+
+  let imageUrl: string | null = null;
+  // Handle cropped image (data URL) first, then fall back to regular file upload
+  if (imageData && typeof imageData === 'string' && imageData.startsWith('data:')) {
+    imageUrl = await saveImageUpload(imageData, "object");
+  } else if (imageFile instanceof File && imageFile.size > 0) {
+    imageUrl = await saveImageUpload(imageFile, "object");
+  }
 
   const object = await prisma.object.create({
     data: {
