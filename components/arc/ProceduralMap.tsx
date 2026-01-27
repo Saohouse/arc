@@ -1577,7 +1577,7 @@ export function ProceduralMap({ nodes, links, isMaximized = false, onToggleMaxim
             const numTrees = 3 + feature.variant;
             
             // Generate tree positions in a natural cluster
-            const treeData = [];
+            const treeData: { x: number; y: number; size: number; isPine: boolean }[] = [];
             for (let i = 0; i < numTrees; i++) {
               const angle = (i / numTrees) * Math.PI * 2 + seededRandom(feature.seed + i) * 1.2;
               const dist = s * 0.3 * (0.2 + seededRandom(feature.seed + i + 10) * 0.8);
