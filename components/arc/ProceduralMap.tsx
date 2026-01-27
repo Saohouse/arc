@@ -1293,7 +1293,7 @@ export function ProceduralMap({
           if (absAngleDiff < 2.09 && projection > 0) {
             // Check if sibling has cities (to allow some flexibility)
             const siblingChildren = nodes.filter(n => 
-              n.parentId === sibling.id && 
+              n.parentLocationId === sibling.id && 
               (n.type === 'city' || n.type === 'town')
             );
             const siblingHasCities = siblingChildren.length > 0;
