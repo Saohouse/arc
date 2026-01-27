@@ -1686,7 +1686,7 @@ export function ProceduralMap({
       const draggedNode = nodes.find(n => n.id === draggedLocation);
       const collisionPadding = 100; // Minimum distance between province center and other cities
       
-      if (draggedNode?.type === 'province') {
+      if (draggedNode?.locationType === 'province') {
         // PROVINCE: Check collision with other provinces' cities
         const otherCities = nodes.filter(n => 
           (n.locationType === 'city' || n.locationType === 'town') && 
