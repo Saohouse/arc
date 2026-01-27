@@ -21,6 +21,9 @@ type MapNode = {
   iconData: string | null;
   locationType: string | null;
   parentLocationId: string | null;
+  summary: string | null;
+  overview: string | null;
+  tags: string;
 };
 
 type MapLink = {
@@ -36,6 +39,24 @@ function hashString(input: string) {
   return hash;
 }
 
+/**
+ * Check if a location should be positioned near water based on its description
+ */
+function isCoastalLocation(summary: string | null, overview: string | null, tags: string): boolean {
+  const text = `${summary || ''} ${overview || ''} ${tags || ''}`.toLowerCase();
+  if (!text.trim()) return false;
+  
+  const coastalKeywords = [
+    'port', 'harbor', 'harbour', 'coastal', 'coast', 'seaside', 'waterfront',
+    'bay', 'dock', 'wharf', 'marina', 'beach', 'shore', 'seafront',
+    'nautical', 'maritime', 'naval', 'fishing village', 'fishing port',
+    'ocean', 'sea ', ' sea', 'lake ', 'lakeside', 'riverside', 'river port',
+    'estuary', 'peninsula', 'island', 'archipelago', 'reef'
+  ];
+  
+  return coastalKeywords.some(keyword => text.includes(keyword));
+}
+
 function buildMapNodes(locations: Array<{ 
   id: string; 
   name: string; 
@@ -44,6 +65,9 @@ function buildMapNodes(locations: Array<{
   iconData: string | null;
   locationType: string | null;
   parentLocationId: string | null;
+  summary: string | null;
+  overview: string | null;
+  tags: string;
 }>) {
   const centerX = MAP_WIDTH / 2;
   const centerY = MAP_HEIGHT / 2;
@@ -62,7 +86,11 @@ function buildMapNodes(locations: Array<{
     const seed = hashString(country.name);
     const angle = (index / Math.max(countries.length, 1)) * Math.PI * 2;
     const jitter = ((seed % 100) / 100 - 0.5) * 0.2;
-    const r = countryRadius * (1 + jitter);
+    
+    // Push coastal countries MUCH further toward the edge (outer ring)
+    const isCoastal = isCoastalLocation(country.summary, country.overview, country.tags);
+    const radiusMultiplier = isCoastal ? 1.35 : 1; // 35% further out if coastal (was 15%)
+    const r = countryRadius * (1 + jitter) * radiusMultiplier;
     
     positionedNodes.set(country.id, {
       id: country.id,
@@ -74,6 +102,9 @@ function buildMapNodes(locations: Array<{
       iconData: country.iconData,
       locationType: country.locationType,
       parentLocationId: country.parentLocationId,
+      summary: country.summary,
+      overview: country.overview,
+      tags: country.tags,
     });
   });
 
@@ -81,6 +112,7 @@ function buildMapNodes(locations: Array<{
   provinces.forEach((province, index) => {
     let x, y;
     const seed = hashString(province.name);
+    const isCoastal = isCoastalLocation(province.summary, province.overview, province.tags);
     
     if (province.parentLocationId && positionedNodes.has(province.parentLocationId)) {
       const parent = positionedNodes.get(province.parentLocationId)!;
@@ -91,15 +123,20 @@ function buildMapNodes(locations: Array<{
       
       // Distribute siblings evenly around parent
       const angle = (siblingIndex / Math.max(siblings.length, 1)) * Math.PI * 2;
-      const distance = 150; // Increased spacing
+      
+      // Coastal provinces pushed MUCH further out (toward water/edge)
+      const baseDistance = 150;
+      const distance = isCoastal ? baseDistance * 1.5 : baseDistance; // 50% further if coastal (was 20%)
+      
       x = parent.x + Math.cos(angle) * distance;
       y = parent.y + Math.sin(angle) * distance;
     } else {
       // No parent, position in smaller circle
       const radius = Math.min(MAP_WIDTH, MAP_HEIGHT) * 0.25;
+      const radiusMultiplier = isCoastal ? 1.4 : 1; // 40% further if coastal
       const angle = (index / Math.max(provinces.length, 1)) * Math.PI * 2;
-      x = centerX + Math.cos(angle) * radius;
-      y = centerY + Math.sin(angle) * radius;
+      x = centerX + Math.cos(angle) * radius * radiusMultiplier;
+      y = centerY + Math.sin(angle) * radius * radiusMultiplier;
     }
     
     positionedNodes.set(province.id, {
@@ -112,6 +149,9 @@ function buildMapNodes(locations: Array<{
       iconData: province.iconData,
       locationType: province.locationType,
       parentLocationId: province.parentLocationId,
+      summary: province.summary,
+      overview: province.overview,
+      tags: province.tags,
     });
   });
 
@@ -119,6 +159,7 @@ function buildMapNodes(locations: Array<{
   cities.forEach((city, index) => {
     let x, y;
     const seed = hashString(city.name);
+    const isCoastal = isCoastalLocation(city.summary, city.overview, city.tags);
     
     if (city.parentLocationId && positionedNodes.has(city.parentLocationId)) {
       const parent = positionedNodes.get(city.parentLocationId)!;
@@ -127,16 +168,77 @@ function buildMapNodes(locations: Array<{
       const siblings = cities.filter(c => c.parentLocationId === city.parentLocationId);
       const siblingIndex = siblings.findIndex(s => s.id === city.id);
       
-      // Distribute evenly around parent province - WITHIN province boundaries
+      // Distribute evenly around parent province
       const angle = (siblingIndex / Math.max(siblings.length, 1)) * Math.PI * 2 + (seed % 100) / 100;
-      const distance = 50; // Reduced distance to stay inside province
-      x = parent.x + Math.cos(angle) * distance;
-      y = parent.y + Math.sin(angle) * distance;
+      
+      if (isCoastal) {
+        // COASTAL CITIES: Position near the COUNTRY edge, not relative to province!
+        // Find the grandparent country
+        const grandparentId = parent.parentLocationId;
+        
+        // DEBUG
+        if (city.name.toLowerCase().includes('saltmere')) {
+          console.log('🌊 SALTMERE COASTAL DEBUG:');
+          console.log('  - Parent province:', parent.name, 'at', parent.x, parent.y);
+          console.log('  - Parent parentLocationId:', parent.parentLocationId);
+          console.log('  - grandparentId:', grandparentId);
+          console.log('  - positionedNodes has grandparent:', grandparentId ? positionedNodes.has(grandparentId) : 'N/A');
+        }
+        
+        if (grandparentId && positionedNodes.has(grandparentId)) {
+          const country = positionedNodes.get(grandparentId)!;
+          
+          // Calculate direction from country center OUTWARD (toward coast)
+          // Use province position to determine general direction
+          const dirX = parent.x - country.x;
+          const dirY = parent.y - country.y;
+          const dirLength = Math.sqrt(dirX * dirX + dirY * dirY);
+          const normalizedDirX = dirX / dirLength;
+          const normalizedDirY = dirY / dirLength;
+          
+          // Position city at the country edge (country radius is ~350-400px)
+          // Place coastal city at ~320px from country center (near edge!)
+          const coastDistance = 310;
+          x = country.x + normalizedDirX * coastDistance;
+          y = country.y + normalizedDirY * coastDistance;
+          
+          // Add slight offset based on sibling index to avoid stacking
+          const offsetAngle = angle * 0.3;
+          x += Math.cos(offsetAngle) * 30;
+          y += Math.sin(offsetAngle) * 30;
+          
+          // DEBUG
+          if (city.name.toLowerCase().includes('saltmere')) {
+            console.log('  - Country:', country.name, 'at', country.x, country.y);
+            console.log('  - Direction:', normalizedDirX, normalizedDirY);
+            console.log('  - Coast distance:', coastDistance);
+            console.log('  - FINAL position:', x, y);
+          }
+        } else {
+          // Fallback: position far from province
+          const distance = 150;
+          x = parent.x + Math.cos(angle) * distance;
+          y = parent.y + Math.sin(angle) * distance;
+          
+          // DEBUG
+          if (city.name.toLowerCase().includes('saltmere')) {
+            console.log('  - FALLBACK! No grandparent found');
+            console.log('  - Using distance:', distance);
+            console.log('  - FINAL position:', x, y);
+          }
+        }
+      } else {
+        // INLAND CITIES: Position near province center
+        const baseDistance = 50;
+        x = parent.x + Math.cos(angle) * baseDistance;
+        y = parent.y + Math.sin(angle) * baseDistance;
+      }
     } else {
       const radius = Math.min(MAP_WIDTH, MAP_HEIGHT) * 0.2;
+      const radiusMultiplier = isCoastal ? 1.5 : 1; // 50% further if coastal
       const angle = (index / Math.max(cities.length, 1)) * Math.PI * 2;
-      x = centerX + Math.cos(angle) * radius;
-      y = centerY + Math.sin(angle) * radius;
+      x = centerX + Math.cos(angle) * radius * radiusMultiplier;
+      y = centerY + Math.sin(angle) * radius * radiusMultiplier;
     }
     
     positionedNodes.set(city.id, {
@@ -149,6 +251,9 @@ function buildMapNodes(locations: Array<{
       iconData: city.iconData,
       locationType: city.locationType,
       parentLocationId: city.parentLocationId,
+      summary: city.summary,
+      overview: city.overview,
+      tags: city.tags,
     });
   });
 
@@ -156,6 +261,7 @@ function buildMapNodes(locations: Array<{
   towns.forEach((town, index) => {
     let x, y;
     const seed = hashString(town.name);
+    const isCoastal = isCoastalLocation(town.summary, town.overview, town.tags);
     
     if (town.parentLocationId && positionedNodes.has(town.parentLocationId)) {
       const parent = positionedNodes.get(town.parentLocationId)!;
@@ -166,14 +272,19 @@ function buildMapNodes(locations: Array<{
       
       // Distribute evenly around parent city
       const angle = (siblingIndex / Math.max(siblings.length, 1)) * Math.PI * 2 + (seed % 100) / 100;
-      const distance = 50; // Increased spacing
+      
+      // Coastal towns positioned further
+      const baseDistance = 50;
+      const distance = isCoastal ? baseDistance * 1.3 : baseDistance; // 30% further if coastal
+      
       x = parent.x + Math.cos(angle) * distance;
       y = parent.y + Math.sin(angle) * distance;
     } else {
       const radius = Math.min(MAP_WIDTH, MAP_HEIGHT) * 0.15;
+      const radiusMultiplier = isCoastal ? 1.3 : 1;
       const angle = (index / Math.max(towns.length, 1)) * Math.PI * 2;
-      x = centerX + Math.cos(angle) * radius;
-      y = centerY + Math.sin(angle) * radius;
+      x = centerX + Math.cos(angle) * radius * radiusMultiplier;
+      y = centerY + Math.sin(angle) * radius * radiusMultiplier;
     }
     
     positionedNodes.set(town.id, {
@@ -186,26 +297,34 @@ function buildMapNodes(locations: Array<{
       iconData: town.iconData,
       locationType: town.locationType,
       parentLocationId: town.parentLocationId,
+      summary: town.summary,
+      overview: town.overview,
+      tags: town.tags,
     });
   });
 
   // Position standalone locations
   standalone.forEach((location, index) => {
     const seed = hashString(location.name);
+    const isCoastal = isCoastalLocation(location.summary, location.overview, location.tags);
     const radius = Math.min(MAP_WIDTH, MAP_HEIGHT) * 0.3;
+    const radiusMultiplier = isCoastal ? 1.35 : 1; // 35% further if coastal
     const angle = (index / Math.max(standalone.length, 1)) * Math.PI * 2;
     const jitter = ((seed % 100) / 100 - 0.5) * 0.15;
     
     positionedNodes.set(location.id, {
       id: location.id,
       name: location.name,
-      x: centerX + Math.cos(angle) * radius * (1 + jitter),
-      y: centerY + Math.sin(angle) * radius * (1 + jitter),
+      x: centerX + Math.cos(angle) * radius * (1 + jitter) * radiusMultiplier,
+      y: centerY + Math.sin(angle) * radius * (1 + jitter) * radiusMultiplier,
       residents: location.residents,
       iconType: location.iconType,
       iconData: location.iconData,
       locationType: location.locationType,
       parentLocationId: location.parentLocationId,
+      summary: location.summary,
+      overview: location.overview,
+      tags: location.tags,
     });
   });
 
@@ -242,6 +361,9 @@ export default async function MapPage() {
       parentLocationId: true,
       iconType: true,
       iconData: true,
+      summary: true,
+      overview: true,
+      tags: true, // Include tags for keyword detection
       residents: {
         select: {
           id: true,

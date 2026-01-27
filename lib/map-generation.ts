@@ -25,8 +25,9 @@ export function generateOrganicShape(
     const angleVariation = (seededRandom(seed + i * 100) - 0.5) * randomness * 0.8;
     const angle = angleStep * i + angleVariation;
     
-    // Vary radius significantly for non-circular shapes
-    const radiusVariation = 0.7 + seededRandom(seed + i * 200) * randomness * 1.2;
+    // Vary radius around 1.0 for more predictable shapes
+    // Range: (1 - randomness*0.6) to (1 + randomness*0.6)
+    const radiusVariation = 1.0 + (seededRandom(seed + i * 200) - 0.5) * randomness * 1.2;
     const radius = baseRadius * radiusVariation;
     
     const x = centerX + Math.cos(angle) * radius;

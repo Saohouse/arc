@@ -31,6 +31,9 @@ type MapNode = {
   iconData: string | null;
   locationType: string | null;
   parentLocationId: string | null;
+  summary: string | null;
+  overview: string | null;
+  tags: string;
 };
 
 type MapLink = {
@@ -49,6 +52,21 @@ type Region = {
   children: MapNode[];
 };
 
+// Helper to detect coastal locations from their description
+function isCoastalLocation(summary: string | null, overview: string | null, tags: string): boolean {
+  const text = `${summary || ''} ${overview || ''} ${tags || ''}`.toLowerCase();
+  if (!text.trim()) return false;
+  
+  const coastalKeywords = [
+    'coast', 'coastal', 'port', 'harbor', 'harbour', 'bay', 'beach', 'seaside',
+    'maritime', 'naval', 'fishing', 'dock', 'pier', 'wharf', 'ocean', 'sea',
+    'waterfront', 'shore', 'shoreline', 'marina', 'lighthouse', 'island',
+    'peninsula', 'cape', 'cove', 'inlet'
+  ];
+  
+  return coastalKeywords.some(keyword => text.includes(keyword));
+}
+
 export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [viewBox, setViewBox] = useState({
@@ -62,6 +80,55 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [regions, setRegions] = useState<Region[]>([]);
   const [mapSeed, setMapSeed] = useState(0); // For regeneration
+  const [nodePositions, setNodePositions] = useState<Map<string, { x: number; y: number }>>(new Map());
+
+  // Helper: Find where a ray from center intersects the polygon boundary
+  const findBoundaryPoint = (
+    centerX: number,
+    centerY: number,
+    dirX: number,
+    dirY: number,
+    shape: Point[]
+  ): { x: number; y: number } | null => {
+    // Normalize direction
+    const len = Math.sqrt(dirX * dirX + dirY * dirY);
+    if (len === 0) return null;
+    const ndx = dirX / len;
+    const ndy = dirY / len;
+    
+    // Cast a ray from center in the direction and find intersection with polygon edges
+    let closestDist = Infinity;
+    let closestPoint: { x: number; y: number } | null = null;
+    
+    for (let i = 0; i < shape.length; i++) {
+      const p1 = shape[i];
+      const p2 = shape[(i + 1) % shape.length];
+      
+      // Line segment from p1 to p2
+      const edgeX = p2.x - p1.x;
+      const edgeY = p2.y - p1.y;
+      
+      // Solve for intersection: center + t * dir = p1 + s * edge
+      const denom = ndx * edgeY - ndy * edgeX;
+      if (Math.abs(denom) < 0.0001) continue; // Parallel
+      
+      const t = ((p1.x - centerX) * edgeY - (p1.y - centerY) * edgeX) / denom;
+      const s = ((p1.x - centerX) * ndy - (p1.y - centerY) * ndx) / denom;
+      
+      // Check if intersection is valid (t > 0 for ray, 0 <= s <= 1 for segment)
+      if (t > 0 && s >= 0 && s <= 1) {
+        if (t < closestDist) {
+          closestDist = t;
+          closestPoint = {
+            x: centerX + t * ndx,
+            y: centerY + t * ndy,
+          };
+        }
+      }
+    }
+    
+    return closestPoint;
+  };
 
   // Generate regions on mount and when seed changes
   useEffect(() => {
@@ -90,88 +157,173 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
         });
       }
       
-      // More organic shape for realistic country borders
-      const sides = 9 + Math.floor(seededRandom(seed) * 5); // 9-13 sides for complex borders
+      // Generate realistic jagged country borders (like real countries!)
+      const numSides = 24 + Math.floor(seededRandom(seed) * 12); // 24-36 sides for detailed jagged edges
+      const countryPoints: Point[] = [];
       
-      const shape = generateOrganicShape(
-        country.x,
-        country.y,
-        maxDistance,
-        sides,
-        0.55, // High randomness for very irregular country shapes
-        seed
-      );
+      for (let i = 0; i < numSides; i++) {
+        const baseAngle = (i / numSides) * Math.PI * 2;
+        // Add angular jitter for jagged coastline effect
+        const angleJitter = (seededRandom(seed + i * 73) - 0.5) * 0.25;
+        const angle = baseAngle + angleJitter;
+        
+        // Radius variation for realistic irregular borders
+        const radiusVariation = 0.75 + seededRandom(seed + i * 137) * 0.5; // 0.75 to 1.25
+        const radius = maxDistance * radiusVariation;
+        
+        countryPoints.push({
+          x: country.x + Math.cos(angle) * radius,
+          y: country.y + Math.sin(angle) * radius,
+        });
+      }
+      
+      const shape = countryPoints;
       
       const region = { node: country, shape, children };
       countryRegionsMap.set(country.id, region);
       generatedRegions.push(region);
     });
     
-    // Generate province regions - CLIPPED to stay inside parent country
+    // REPOSITION COASTAL CITIES to actual country boundary
+    // Create a map of repositioned node positions
+    const repositionedNodes = new Map<string, { x: number; y: number }>();
+    
+    nodes.forEach((node) => {
+      if (node.locationType === "city" || node.locationType === "town") {
+        const isCoastal = isCoastalLocation(node.summary, node.overview, node.tags);
+        
+        if (isCoastal && node.parentLocationId) {
+          // Find the province
+          const province = nodes.find((n) => n.id === node.parentLocationId);
+          if (province && province.parentLocationId) {
+            // Find the country
+            const countryRegion = countryRegionsMap.get(province.parentLocationId);
+            if (countryRegion) {
+              const country = countryRegion.node;
+              
+              // Calculate direction from country center toward the province
+              const dirX = province.x - country.x;
+              const dirY = province.y - country.y;
+              
+              // Find the actual boundary point in that direction
+              const boundaryPoint = findBoundaryPoint(
+                country.x,
+                country.y,
+                dirX,
+                dirY,
+                countryRegion.shape
+              );
+              
+              if (boundaryPoint) {
+                // Position city slightly inside the boundary (5% inward)
+                const insetFactor = 0.92; // 92% of the way to boundary
+                const newX = country.x + (boundaryPoint.x - country.x) * insetFactor;
+                const newY = country.y + (boundaryPoint.y - country.y) * insetFactor;
+                
+                repositionedNodes.set(node.id, { x: newX, y: newY });
+              }
+            }
+          }
+        }
+      }
+    });
+    
+    // Generate province regions using Voronoi-like territory allocation
+    // Each province extends toward the midpoint between itself and neighbors
+    
+    // First, calculate territory boundaries for each province
+    const provinceShapes = new Map<string, Point[]>();
+    
     provinces.forEach((province) => {
-      const seed = hashString(province.id) + mapSeed; // Use mapSeed for variation
+      const seed = hashString(province.id) + mapSeed;
+      
+      // Find sibling provinces (same parent country)
+      const siblings = provinces.filter(
+        (p) => p.id !== province.id && p.parentLocationId === province.parentLocationId
+      );
       
       // Find children (cities in this province)
       const children = nodes.filter(
         (n) => n.locationType === "city" && n.parentLocationId === province.id
       );
       
-      // SMALLER radius to prevent overlap - provinces should be distinct, not overlapping
-      let maxDistance = 60; // Reduced minimum
-      if (children.length > 0) {
-        children.forEach((child) => {
-          const dx = child.x - province.x;
-          const dy = child.y - province.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          maxDistance = Math.max(maxDistance, distance + 35); // Less padding to prevent overlap
+      // Get the parent country shape for boundary clipping
+      const parentCountry = province.parentLocationId 
+        ? countryRegionsMap.get(province.parentLocationId) 
+        : null;
+      
+      // Generate points around the province, but limit by neighbors and country boundary
+      const numSides = 16 + Math.floor(seededRandom(seed) * 8); // 16-24 sides for jagged edges
+      const points: Point[] = [];
+      
+      for (let i = 0; i < numSides; i++) {
+        const baseAngle = (i / numSides) * Math.PI * 2;
+        // Add angular jitter for jagged edges
+        const angleJitter = (seededRandom(seed + i * 50) - 0.5) * 0.3;
+        const angle = baseAngle + angleJitter;
+        
+        // Start with a large radius
+        let maxRadius = 200;
+        
+        // Limit by distance to siblings (Voronoi-like)
+        siblings.forEach((sibling) => {
+          const dx = sibling.x - province.x;
+          const dy = sibling.y - province.y;
+          const distToSibling = Math.sqrt(dx * dx + dy * dy);
+          
+          // Calculate angle to sibling
+          const angleToSibling = Math.atan2(dy, dx);
+          
+          // If this point direction is toward the sibling, limit the radius
+          const angleDiff = Math.abs(angle - angleToSibling);
+          const normalizedDiff = Math.min(angleDiff, Math.PI * 2 - angleDiff);
+          
+          if (normalizedDiff < Math.PI / 2) {
+            // This direction faces toward the sibling
+            // Limit to ~45% of the distance (so provinces meet in the middle with gap)
+            const factor = 0.45 + (normalizedDiff / Math.PI) * 0.3; // 0.45 to 0.6
+            const limitedRadius = distToSibling * factor;
+            maxRadius = Math.min(maxRadius, limitedRadius);
+          }
+        });
+        
+        // Apply jagged variation FIRST (before boundary limiting)
+        const minRadius = 50;
+        const radiusVariation = 0.8 + seededRandom(seed + i * 100) * 0.4; // 0.8 to 1.2
+        let finalRadius = Math.max(minRadius, maxRadius * radiusVariation);
+        
+        // THEN limit by country boundary (this is the FINAL limit - never exceed!)
+        if (parentCountry) {
+          const boundaryPoint = findBoundaryPoint(
+            province.x,
+            province.y,
+            Math.cos(angle),
+            Math.sin(angle),
+            parentCountry.shape
+          );
+          if (boundaryPoint) {
+            const distToBoundary = Math.sqrt(
+              Math.pow(boundaryPoint.x - province.x, 2) + 
+              Math.pow(boundaryPoint.y - province.y, 2)
+            );
+            // HARD LIMIT: Stay 15% inside country boundary (never exceed!)
+            const maxAllowed = distToBoundary * 0.85;
+            finalRadius = Math.min(finalRadius, maxAllowed);
+          }
+        }
+        
+        points.push({
+          x: province.x + Math.cos(angle) * finalRadius,
+          y: province.y + Math.sin(angle) * finalRadius,
         });
       }
       
-      // Cap to prevent excessive overlap
-      maxDistance = Math.min(maxDistance, 95);
-      
-      // More sides and irregularity for non-circular shapes
-      const sides = 9 + Math.floor(seededRandom(seed + 100) * 5); // 9-13 sides
-      
-      let shape = generateOrganicShape(
-        province.x,
-        province.y,
-        maxDistance,
-        sides,
-        0.5, // High randomness for irregular, non-circular shapes
-        seed + 1000
-      );
-      
-      // CRITICAL: Scale down province if it extends beyond parent country boundary
-      if (province.parentLocationId && countryRegionsMap.has(province.parentLocationId)) {
-        const parentCountry = countryRegionsMap.get(province.parentLocationId)!;
-        const countryBounds = getBounds(parentCountry.shape);
-        const provinceBounds = getBounds(shape);
-        
-        // Check if province extends beyond country
-        const extendsLeft = provinceBounds.minX < countryBounds.minX;
-        const extendsRight = provinceBounds.maxX > countryBounds.maxX;
-        const extendsTop = provinceBounds.minY < countryBounds.minY;
-        const extendsBottom = provinceBounds.maxY > countryBounds.maxY;
-        
-        if (extendsLeft || extendsRight || extendsTop || extendsBottom) {
-          // Scale down by 80% and regenerate
-          const scaledDistance = maxDistance * 0.75;
-          shape = generateOrganicShape(
-            province.x,
-            province.y,
-            scaledDistance,
-            sides,
-            0.4, // Less randomness for safer fit
-            seed + 1000
-          );
-        }
-      }
-      
-      generatedRegions.push({ node: province, shape, children });
+      provinceShapes.set(province.id, points);
+      generatedRegions.push({ node: province, shape: points, children });
     });
     
     setRegions(generatedRegions);
+    setNodePositions(repositionedNodes);
   }, [nodes, mapSeed]); // Regenerate when mapSeed changes
 
   const handleWheel = (e: WheelEvent<SVGSVGElement>) => {
@@ -284,45 +436,42 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
 
   return (
     <div className="relative">
-      <div className="absolute right-2 top-2 z-10 flex flex-col gap-2">
+      <div className="absolute right-2 top-2 z-10 flex flex-col gap-1">
         <button
           onClick={() => setMapSeed(prev => prev + 1)}
-          className="rounded-md bg-background/90 px-3 py-2 text-sm font-medium shadow-sm hover:bg-muted border"
-          title="Regenerate map (new procedural shapes)"
+          className="rounded bg-white/90 p-1.5 shadow-sm hover:bg-gray-100 border border-gray-200"
+          title="Regenerate map"
         >
-          <div className="flex items-center gap-2">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M14 8 A6 6 0 0 1 8 14 M8 14 A6 6 0 0 1 2 8 M2 8 A6 6 0 0 1 8 2" />
-              <path d="M8 2 L8 5 L11 5" />
-            </svg>
-            <span>Regenerate</span>
-          </div>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M14 8 A6 6 0 0 1 8 14 M8 14 A6 6 0 0 1 2 8 M2 8 A6 6 0 0 1 8 2" />
+            <path d="M8 2 L8 5 L11 5" />
+          </svg>
         </button>
         <button
           onClick={zoomIn}
-          className="rounded-md bg-background/90 p-2 text-sm font-medium shadow-sm hover:bg-muted border"
+          className="rounded bg-white/90 p-1.5 shadow-sm hover:bg-gray-100 border border-gray-200"
           title="Zoom in"
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
             <line x1="8" y1="4" x2="8" y2="12" />
             <line x1="4" y1="8" x2="12" y2="8" />
           </svg>
         </button>
         <button
           onClick={zoomOut}
-          className="rounded-md bg-background/90 p-2 text-sm font-medium shadow-sm hover:bg-muted border"
+          className="rounded bg-white/90 p-1.5 shadow-sm hover:bg-gray-100 border border-gray-200"
           title="Zoom out"
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
             <line x1="4" y1="8" x2="12" y2="8" />
           </svg>
         </button>
         <button
           onClick={resetView}
-          className="rounded-md bg-background/90 p-2 text-sm font-medium shadow-sm hover:bg-muted border"
+          className="rounded bg-white/90 p-1.5 shadow-sm hover:bg-gray-100 border border-gray-200"
           title="Reset view"
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M4 8 L 8 4 L 12 8 M8 4 L 8 12" />
           </svg>
         </button>
@@ -501,11 +650,15 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
 
         {/* Layer 3: Roads (below labels) */}
         {links.map((link, index) => {
+          // Use repositioned coordinates for coastal cities
+          const fromPos = nodePositions.get(link.from.id) || { x: link.from.x, y: link.from.y };
+          const toPos = nodePositions.get(link.to.id) || { x: link.to.x, y: link.to.y };
+          
           // Use consistent seed based on location IDs
           const seed = hashString(link.from.id + link.to.id);
           const roadPath = generateRoadPath(
-            { x: link.from.x, y: link.from.y },
-            { x: link.to.x, y: link.to.y },
+            fromPos,
+            toPos,
             seed,
             0.08 // Reduced curviness for stability
           );
@@ -545,193 +698,213 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
           );
         })}
         
-        {/* Layer 4: Region Labels (on top of roads) */}
-        {regions
-          .filter((r) => r.node.locationType === "country")
-          .map((region) => {
-            const colors = getLocationColors(region.node.locationType);
-            
-            return (
-              <g key={`label-${region.node.id}`}>
-                {/* Region label - Pokemon style - LARGE for countries */}
-                {(() => {
-                  const labelY = region.node.y - (getBounds(region.shape).maxY - region.node.y) + 35;
-                  const labelText = region.node.name;
-                  const textWidth = labelText.length * 14; // Larger width for bigger font
-                  const padding = 18;
-                  
-                  return (
-                    <g>
-                      {/* Background box - larger and more prominent */}
-                      <rect
-                        x={region.node.x - textWidth / 2 - padding}
-                        y={labelY - 20}
-                        width={textWidth + padding * 2}
-                        height={34}
-                        fill="white"
-                        stroke={colors.stroke}
-                        strokeWidth="3.5"
-                        rx="6"
-                        filter="url(#label-shadow)"
-                        style={{ pointerEvents: "none" }}
-                      />
-                      {/* Label text - much bigger */}
-                      <text
-                        x={region.node.x}
-                        y={labelY}
-                        textAnchor="middle"
-                        fontSize="22"
-                        fontWeight="900"
-                        fill={colors.stroke}
-                        style={{ 
-                          pointerEvents: "none", 
-                          userSelect: "none",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.1em",
-                          fontFamily: "system-ui, -apple-system, sans-serif"
-                        }}
-                      >
-                        {labelText}
-                      </text>
-                    </g>
-                  );
-                })()}
-              </g>
-            );
-          })}
+        {/* Layer 4: Region Labels (on top of roads) - scales with zoom */}
+        {(() => {
+          const zoomScale = viewBox.width / MAP_WIDTH;
+          
+          return regions
+            .filter((r) => r.node.locationType === "country")
+            .map((region) => {
+              const colors = getLocationColors(region.node.locationType);
+              
+              // Scale all dimensions by zoom
+              const fontSize = 22 * zoomScale;
+              const textWidth = region.node.name.length * 14 * zoomScale;
+              const padding = 18 * zoomScale;
+              const boxHeight = 34 * zoomScale;
+              const strokeWidth = 3.5 * zoomScale;
+              const borderRadius = 6 * zoomScale;
+              const labelYOffset = 35 * zoomScale;
+              const textYOffset = 20 * zoomScale;
+              
+              const labelY = region.node.y - (getBounds(region.shape).maxY - region.node.y) + labelYOffset;
+              
+              return (
+                <g key={`label-${region.node.id}`}>
+                  <g>
+                    <rect
+                      x={region.node.x - textWidth / 2 - padding}
+                      y={labelY - textYOffset}
+                      width={textWidth + padding * 2}
+                      height={boxHeight}
+                      fill="white"
+                      stroke={colors.stroke}
+                      strokeWidth={strokeWidth}
+                      rx={borderRadius}
+                      filter="url(#label-shadow)"
+                      style={{ pointerEvents: "none" }}
+                    />
+                    <text
+                      x={region.node.x}
+                      y={labelY}
+                      textAnchor="middle"
+                      fontSize={fontSize}
+                      fontWeight="900"
+                      fill={colors.stroke}
+                      style={{ 
+                        pointerEvents: "none", 
+                        userSelect: "none",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.1em",
+                        fontFamily: "system-ui, -apple-system, sans-serif"
+                      }}
+                    >
+                      {region.node.name}
+                    </text>
+                  </g>
+                </g>
+              );
+            });
+        })()}
         
-        {regions
-          .filter((r) => r.node.locationType === "province")
-          .map((region) => {
-            const colors = getLocationColors(region.node.locationType);
-            
-            return (
-              <g key={`label-${region.node.id}`}>
-                {/* Region label - Pokemon style */}
-                {(() => {
-                  const labelY = region.node.y - (getBounds(region.shape).maxY - region.node.y) + 25;
-                  const labelText = region.node.name;
-                  const textWidth = labelText.length * 7.5; // Approximate width
-                  const padding = 8;
-                  
-                  return (
-                    <g>
-                      {/* Background box - clean design */}
-                      <rect
-                        x={region.node.x - textWidth / 2 - padding}
-                        y={labelY - 12}
-                        width={textWidth + padding * 2}
-                        height={18}
-                        fill="white"
-                        stroke={colors.stroke}
-                        strokeWidth="2"
-                        rx="3"
-                        filter="url(#label-shadow)"
-                        style={{ pointerEvents: "none" }}
-                      />
-                      {/* Label text */}
-                      <text
-                        x={region.node.x}
-                        y={labelY}
-                        textAnchor="middle"
-                        fontSize="12"
-                        fontWeight="700"
-                        fill={colors.stroke}
-                        style={{ 
-                          pointerEvents: "none", 
-                          userSelect: "none",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.08em",
-                          fontFamily: "system-ui, -apple-system, sans-serif"
-                        }}
-                      >
-                        {labelText}
-                      </text>
-                    </g>
-                  );
-                })()}
-              </g>
-            );
-          })}
+        {(() => {
+          const zoomScale = viewBox.width / MAP_WIDTH;
+          
+          return regions
+            .filter((r) => r.node.locationType === "province")
+            .map((region) => {
+              const colors = getLocationColors(region.node.locationType);
+              
+              // Scale all dimensions by zoom
+              const fontSize = 12 * zoomScale;
+              const textWidth = region.node.name.length * 7.5 * zoomScale;
+              const padding = 8 * zoomScale;
+              const boxHeight = 18 * zoomScale;
+              const strokeWidth = 2 * zoomScale;
+              const borderRadius = 3 * zoomScale;
+              const labelYOffset = 25 * zoomScale;
+              const textYOffset = 12 * zoomScale;
+              
+              const labelY = region.node.y - (getBounds(region.shape).maxY - region.node.y) + labelYOffset;
+              
+              return (
+                <g key={`label-${region.node.id}`}>
+                  <g>
+                    <rect
+                      x={region.node.x - textWidth / 2 - padding}
+                      y={labelY - textYOffset}
+                      width={textWidth + padding * 2}
+                      height={boxHeight}
+                      fill="white"
+                      stroke={colors.stroke}
+                      strokeWidth={strokeWidth}
+                      rx={borderRadius}
+                      filter="url(#label-shadow)"
+                      style={{ pointerEvents: "none" }}
+                    />
+                    <text
+                      x={region.node.x}
+                      y={labelY}
+                      textAnchor="middle"
+                      fontSize={fontSize}
+                      fontWeight="700"
+                      fill={colors.stroke}
+                      style={{ 
+                        pointerEvents: "none", 
+                        userSelect: "none",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                        fontFamily: "system-ui, -apple-system, sans-serif"
+                      }}
+                    >
+                      {region.node.name}
+                    </text>
+                  </g>
+                </g>
+              );
+            });
+        })()}
 
         {/* Layer 5: Location nodes and labels (topmost layer) */}
-        {nodes.map((node) => {
-          const residentNames = node.residents.map((r) => r.name).join(", ");
-          const isSelected = selectedNode === node.id;
-          const icon = node.iconData || "📍";
+        {(() => {
+          // Calculate zoom scale factor - text scales to stay readable
+          const zoomScale = viewBox.width / MAP_WIDTH;
           
-          // Determine node size based on type
-          // Countries and provinces are subtle (region is main visual)
-          // Cities and towns are prominent (node is main visual)
-          let nodeRadius = 32;
-          if (node.locationType === "country") nodeRadius = 24; // Smaller, subtle
-          else if (node.locationType === "province") nodeRadius = 20; // Smaller, subtle
-          else if (node.locationType === "city") nodeRadius = 36;
-          else if (node.locationType === "town") nodeRadius = 28;
-          
-          return (
-            <g key={node.id}>
-              <a
-                href={`/archive/locations/${node.id}`}
-                onMouseEnter={() => setSelectedNode(node.id)}
-                onMouseLeave={() => setSelectedNode(null)}
-                style={{ cursor: "pointer" }}
-              >
-                <title>
-                  {residentNames
-                    ? `${node.name} — ${residentNames}`
-                    : `${node.name} — no residents yet`}
-                </title>
-                
-                {/* Node background circle - REMOVED per user feedback */}
-                
-                {/* Icon - clean and simple */}
-                <text
-                  x={node.x}
-                  y={node.y + (node.locationType === "country" || node.locationType === "province" ? 12 : 10)}
-                  textAnchor="middle"
-                  fontSize={
-                    node.locationType === "country" || node.locationType === "province"
-                      ? 32
-                      : nodeRadius * 0.75
-                  }
-                  style={{ pointerEvents: "none", userSelect: "none" }}
+          return nodes.map((node) => {
+            const residentNames = node.residents.map((r) => r.name).join(", ");
+            const isSelected = selectedNode === node.id;
+            const icon = node.iconData || "📍";
+            
+            // Use repositioned coordinates for coastal cities
+            const pos = nodePositions.get(node.id) || { x: node.x, y: node.y };
+            const nodeX = pos.x;
+            const nodeY = pos.y;
+            
+            // Determine node size based on type
+            // Countries and provinces are subtle (region is main visual)
+            // Cities and towns are prominent (node is main visual)
+            let nodeRadius = 32;
+            if (node.locationType === "country") nodeRadius = 24;
+            else if (node.locationType === "province") nodeRadius = 20;
+            else if (node.locationType === "city") nodeRadius = 36;
+            else if (node.locationType === "town") nodeRadius = 28;
+            
+            // Scale sizes based on zoom level
+            const iconSize = (node.locationType === "country" || node.locationType === "province" ? 32 : nodeRadius * 0.75) * zoomScale;
+            const nameSize = 13 * zoomScale;
+            const residentSize = 10 * zoomScale;
+            const nameOffset = 28 * zoomScale;
+            const residentOffset = 42 * zoomScale;
+            const iconOffset = (node.locationType === "country" || node.locationType === "province" ? 12 : 10) * zoomScale;
+            
+            return (
+              <g key={node.id}>
+                <a
+                  href={`/archive/locations/${node.id}`}
+                  onMouseEnter={() => setSelectedNode(node.id)}
+                  onMouseLeave={() => setSelectedNode(null)}
+                  style={{ cursor: "pointer" }}
                 >
-                  {icon}
-                </text>
-                
-                {/* Location name below - only for cities and towns (countries/provinces have region labels) */}
-                {node.locationType !== "country" && node.locationType !== "province" && (
+                  <title>
+                    {residentNames
+                      ? `${node.name} — ${residentNames}`
+                      : `${node.name} — no residents yet`}
+                  </title>
+                  
+                  {/* Icon - scales with zoom */}
                   <text
-                    x={node.x}
-                    y={node.y + nodeRadius + 20}
+                    x={nodeX}
+                    y={nodeY + iconOffset}
                     textAnchor="middle"
-                    fontSize="14"
-                    fontWeight={isSelected ? "700" : "600"}
-                    fill="rgba(15, 23, 42, 0.9)"
+                    fontSize={iconSize}
                     style={{ pointerEvents: "none", userSelect: "none" }}
                   >
-                    {node.name}
+                    {icon}
                   </text>
-                )}
-                
-                {/* Resident count - only for cities and towns */}
-                {node.residents.length > 0 && node.locationType !== "country" && node.locationType !== "province" && (
-                  <text
-                    x={node.x}
-                    y={node.y + nodeRadius + 36}
-                    textAnchor="middle"
-                    fontSize="11"
-                    fill="rgba(100, 116, 139, 0.9)"
-                    style={{ pointerEvents: "none", userSelect: "none" }}
-                  >
-                    {node.residents.length} resident{node.residents.length === 1 ? "" : "s"}
-                  </text>
-                )}
-              </a>
-            </g>
-          );
-        })}
+                  
+                  {/* Location name - scales with zoom */}
+                  {node.locationType !== "country" && node.locationType !== "province" && (
+                    <text
+                      x={nodeX}
+                      y={nodeY + nameOffset}
+                      textAnchor="middle"
+                      fontSize={nameSize}
+                      fontWeight={isSelected ? "700" : "600"}
+                      fill="rgba(15, 23, 42, 0.9)"
+                      style={{ pointerEvents: "none", userSelect: "none" }}
+                    >
+                      {node.name}
+                    </text>
+                  )}
+                  
+                  {/* Resident count - scales with zoom */}
+                  {node.residents.length > 0 && node.locationType !== "country" && node.locationType !== "province" && (
+                    <text
+                      x={nodeX}
+                      y={nodeY + residentOffset}
+                      textAnchor="middle"
+                      fontSize={residentSize}
+                      fill="rgba(100, 116, 139, 0.8)"
+                      style={{ pointerEvents: "none", userSelect: "none" }}
+                    >
+                      {node.residents.length} resident{node.residents.length === 1 ? "" : "s"}
+                    </text>
+                  )}
+                </a>
+              </g>
+            );
+          });
+        })()}
       </svg>
       
       <div className="mt-4 space-y-2">

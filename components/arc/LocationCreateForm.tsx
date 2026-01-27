@@ -55,7 +55,7 @@ export function LocationCreateForm({
       case "city":
         return allLocations.filter((loc) => loc.locationType === "province"); // Cities only in provinces
       case "town":
-        return allLocations.filter((loc) => loc.locationType === "city");
+        return allLocations.filter((loc) => loc.locationType === "province"); // Towns go under provinces
       default:
         return allLocations;
     }
