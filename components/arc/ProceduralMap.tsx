@@ -41,11 +41,16 @@ type MapLink = {
   to: MapNode;
 };
 
+// Import terrain types for tile rendering
+import { TERRAIN_TYPES, TerrainType } from "./MapTileEditor";
+
 type ProceduralMapProps = {
   nodes: MapNode[];
   links: MapLink[];
   isMaximized?: boolean;
   onToggleMaximize?: () => void;
+  customTiles?: (TerrainType | null)[][];
+  gridSize?: number;
 };
 
 type Region = {
@@ -155,7 +160,14 @@ const defaultParams: ShapeParams = {
   roadSegments: 4,
 };
 
-export function ProceduralMap({ nodes, links, isMaximized = false, onToggleMaximize }: ProceduralMapProps) {
+export function ProceduralMap({ 
+  nodes, 
+  links, 
+  isMaximized = false, 
+  onToggleMaximize,
+  customTiles,
+  gridSize = 64,
+}: ProceduralMapProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [viewBox, setViewBox] = useState({
     x: 0,
@@ -175,6 +187,93 @@ export function ProceduralMap({ nodes, links, isMaximized = false, onToggleMaxim
   // Dev mode state
   const [devMode, setDevMode] = useState(false);
   const [shapeParams, setShapeParams] = useState<ShapeParams>(defaultParams);
+  
+  // Custom terrain sprites (uploaded by user)
+  type TerrainSpriteType = 'tree' | 'pine' | 'forest' | 'mountain' | 'rock';
+  const SPRITES_STORAGE_KEY = 'map-terrain-sprites';
+  
+  const [customSprites, setCustomSprites] = useState<Record<TerrainSpriteType, string | null>>({
+    tree: null,
+    pine: null,
+    forest: null,
+    mountain: null,
+    rock: null,
+  });
+  
+  // Track which upload area is being dragged over
+  const [dragOver, setDragOver] = useState<TerrainSpriteType | null>(null);
+  
+  // Load sprites from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(SPRITES_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setCustomSprites(prev => ({ ...prev, ...parsed }));
+      }
+    } catch (e) {
+      console.warn('Failed to load saved sprites:', e);
+    }
+  }, []);
+  
+  // Save sprites to localStorage when they change
+  useEffect(() => {
+    try {
+      // Only save if there's at least one sprite
+      const hasSprites = Object.values(customSprites).some(v => v !== null);
+      if (hasSprites) {
+        localStorage.setItem(SPRITES_STORAGE_KEY, JSON.stringify(customSprites));
+      } else {
+        localStorage.removeItem(SPRITES_STORAGE_KEY);
+      }
+    } catch (e) {
+      console.warn('Failed to save sprites:', e);
+    }
+  }, [customSprites]);
+  
+  // Handle sprite upload (from file input or drop)
+  const handleSpriteUpload = (type: TerrainSpriteType, file: File) => {
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file (PNG recommended)');
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      setCustomSprites(prev => ({ ...prev, [type]: dataUrl }));
+    };
+    reader.readAsDataURL(file);
+  };
+  
+  // Handle drag events
+  const handleDragOver = (e: React.DragEvent, type: TerrainSpriteType) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(type);
+  };
+  
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(null);
+  };
+  
+  const handleDrop = (e: React.DragEvent, type: TerrainSpriteType) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(null);
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleSpriteUpload(type, files[0]);
+    }
+  };
+  
+  // Clear a sprite
+  const clearSprite = (type: TerrainSpriteType) => {
+    setCustomSprites(prev => ({ ...prev, [type]: null }));
+  };
 
   // Helper: Calculate the centroid (visual center) of a polygon
   const getPolygonCentroid = (shape: Point[]): { x: number; y: number } => {
@@ -882,8 +981,33 @@ export function ProceduralMap({ nodes, links, isMaximized = false, onToggleMaxim
     setIsPanning(false);
   };
 
-  const handleMouseLeave = () => {
+  // Scroll lock when hovering over map
+  const [isHoveringMap, setIsHoveringMap] = useState(false);
+  
+  useEffect(() => {
+    if (isHoveringMap) {
+      // Prevent page scroll when mouse is over the map
+      const preventScroll = (e: Event) => {
+        e.preventDefault();
+      };
+      
+      document.body.style.overflow = 'hidden';
+      window.addEventListener('wheel', preventScroll, { passive: false });
+      
+      return () => {
+        document.body.style.overflow = '';
+        window.removeEventListener('wheel', preventScroll);
+      };
+    }
+  }, [isHoveringMap]);
+  
+  const handleMapMouseEnter = () => {
+    setIsHoveringMap(true);
+  };
+  
+  const handleMapMouseLeave = () => {
     setIsPanning(false);
+    setIsHoveringMap(false);
   };
 
   const resetView = () => {
@@ -1250,6 +1374,91 @@ export function ProceduralMap({ nodes, links, isMaximized = false, onToggleMaxim
           
           <div className="text-[10px] text-gray-400 mt-2 pt-2 border-t">
             Tip: Higher road curviness + more segments = winding organic roads.</div>
+          
+          {/* Terrain Sprites Section */}
+          <div className="border-t border-gray-200 mt-3 pt-3">
+            <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Terrain Sprites</h4>
+            <p className="text-[10px] text-gray-400 mb-2">Upload PNG sprites with transparency</p>
+            
+            {/* Sprite upload grid */}
+            <div className="grid grid-cols-2 gap-2">
+              {(['tree', 'pine', 'forest', 'mountain', 'rock'] as const).map((type) => (
+                <div key={type} className="relative">
+                  <label className="block text-[10px] text-gray-600 capitalize mb-1">{type}</label>
+                  <div 
+                    className={`relative w-full h-16 border-2 border-dashed rounded flex items-center justify-center overflow-hidden group transition-colors ${
+                      dragOver === type 
+                        ? 'border-indigo-500 bg-indigo-50' 
+                        : customSprites[type] 
+                          ? 'border-green-300 bg-green-50' 
+                          : 'border-gray-300 bg-gray-50 hover:border-gray-400'
+                    }`}
+                    onDragOver={(e) => handleDragOver(e, type)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, type)}
+                  >
+                    {customSprites[type] ? (
+                      <>
+                        <img 
+                          src={customSprites[type]!} 
+                          alt={type}
+                          className="max-w-full max-h-full object-contain"
+                        />
+                        <button
+                          onClick={() => clearSprite(type)}
+                          className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full w-4 h-4 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-red-600"
+                          title="Remove"
+                        >
+                          ×
+                        </button>
+                      </>
+                    ) : (
+                      <label className="cursor-pointer flex flex-col items-center text-gray-400 hover:text-gray-600 w-full h-full justify-center">
+                        {dragOver === type ? (
+                          <>
+                            <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                            </svg>
+                            <span className="text-[9px] text-indigo-500">Drop here</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span className="text-[9px]">Drop or click</span>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/png,image/webp,image/jpeg"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleSpriteUpload(type, file);
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {/* Clear all button */}
+            {Object.values(customSprites).some(v => v !== null) && (
+              <button
+                onClick={() => setCustomSprites({ tree: null, pine: null, forest: null, mountain: null, rock: null })}
+                className="mt-2 w-full text-[10px] text-red-500 hover:text-red-700 py-1 border border-red-200 rounded hover:bg-red-50 transition-colors"
+              >
+                Clear all sprites
+              </button>
+            )}
+            
+            <div className="text-[10px] text-gray-400 mt-2">
+              Sprites override procedural graphics. Use transparent PNGs for best results.
+            </div>
+          </div>
         </div>
       )}
 
@@ -1263,7 +1472,8 @@ export function ProceduralMap({ nodes, links, isMaximized = false, onToggleMaxim
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseLeave}
+        onMouseEnter={handleMapMouseEnter}
+        onMouseLeave={handleMapMouseLeave}
       >
         <defs>
           {/* Water texture pattern - Pokemon style ocean */}
@@ -1437,6 +1647,36 @@ export function ProceduralMap({ nodes, links, isMaximized = false, onToggleMaxim
         {/* Water background - fills entire canvas */}
         <rect x="-10000" y="-10000" width="20000" height="20000" fill="url(#water-texture)" />
 
+        {/* Layer 0: Custom Tiles (if provided) */}
+        {customTiles && (() => {
+          const tilePixelSize = MAP_WIDTH / gridSize;
+          const offsetX = (MAP_WIDTH - gridSize * tilePixelSize) / 2;
+          const offsetY = (MAP_HEIGHT - gridSize * tilePixelSize) / 2;
+          
+          return (
+            <g className="custom-tiles">
+              {customTiles.map((row, y) =>
+                row.map((terrain, x) => {
+                  if (!terrain) return null;
+                  const terrainInfo = TERRAIN_TYPES[terrain];
+                  if (!terrainInfo) return null;
+                  
+                  return (
+                    <rect
+                      key={`tile-${x}-${y}`}
+                      x={offsetX + x * tilePixelSize}
+                      y={offsetY + y * tilePixelSize}
+                      width={tilePixelSize + 0.5}
+                      height={tilePixelSize + 0.5}
+                      fill={terrainInfo.color}
+                    />
+                  );
+                })
+              )}
+            </g>
+          );
+        })()}
+
         {/* Layer 1: Countries (background regions) */}
         {regions
           .filter((r) => r.node.locationType === "country")
@@ -1483,100 +1723,76 @@ export function ProceduralMap({ nodes, links, isMaximized = false, onToggleMaxim
             );
           })}
 
-        {/* Layer 3: Terrain Features (trees, mountains, rocks, lakes) - Pokemon style */}
+        {/* Layer 3: Terrain Features - uses custom sprites when uploaded, otherwise fallback SVG */}
         {terrainFeatures.map((feature, index) => {
           const key = `terrain-${feature.type}-${index}`;
           
           if (feature.type === 'tree') {
-            // Detailed single tree - Pokemon style (no floating shadows)
             const s = feature.size;
-            const isDeciduous = feature.variant === 0;
             const isPine = feature.variant === 1;
+            const spriteUrl = isPine ? customSprites.pine : customSprites.tree;
             
-            if (isDeciduous) {
-              // Lush deciduous tree with layered canopy
+            if (spriteUrl) {
+              // Use custom uploaded sprite
+              const imgSize = s * 2.5;
               return (
-                <g key={key} style={{ pointerEvents: 'none' }}>
-                  {/* Trunk with bark texture */}
-                  <path
-                    d={`M ${feature.x - 2.5} ${feature.y + 2} 
-                        C ${feature.x - 3} ${feature.y - s * 0.15} ${feature.x - 2} ${feature.y - s * 0.3} ${feature.x - 1.5} ${feature.y - s * 0.35}
-                        L ${feature.x + 1.5} ${feature.y - s * 0.35}
-                        C ${feature.x + 2} ${feature.y - s * 0.3} ${feature.x + 3} ${feature.y - s * 0.15} ${feature.x + 2.5} ${feature.y + 2} Z`}
-                    fill="url(#trunk-grad)"
-                  />
-                  {/* Trunk detail */}
-                  <line x1={feature.x - 0.5} y1={feature.y - s * 0.1} x2={feature.x - 1} y2={feature.y + 1} stroke="#451A03" strokeWidth="0.5" opacity="0.4" />
-                  {/* Back foliage - darkest */}
-                  <ellipse cx={feature.x + s * 0.12} cy={feature.y - s * 0.45} rx={s * 0.42} ry={s * 0.38} fill="#14532D" />
-                  <ellipse cx={feature.x - s * 0.15} cy={feature.y - s * 0.52} rx={s * 0.38} ry={s * 0.35} fill="#166534" />
-                  {/* Middle foliage */}
-                  <ellipse cx={feature.x} cy={feature.y - s * 0.55} rx={s * 0.48} ry={s * 0.4} fill="#15803D" />
-                  <ellipse cx={feature.x - s * 0.18} cy={feature.y - s * 0.6} rx={s * 0.35} ry={s * 0.32} fill="#16A34A" />
-                  <ellipse cx={feature.x + s * 0.15} cy={feature.y - s * 0.58} rx={s * 0.32} ry={s * 0.28} fill="#22C55E" />
-                  {/* Front highlight leaves */}
-                  <ellipse cx={feature.x - s * 0.08} cy={feature.y - s * 0.68} rx={s * 0.22} ry={s * 0.18} fill="#4ADE80" />
-                  <ellipse cx={feature.x + s * 0.1} cy={feature.y - s * 0.72} rx={s * 0.15} ry={s * 0.12} fill="#86EFAC" opacity="0.8" />
-                </g>
+                <image
+                  key={key}
+                  href={spriteUrl}
+                  x={feature.x - imgSize / 2}
+                  y={feature.y - imgSize * 0.85}
+                  width={imgSize}
+                  height={imgSize}
+                  style={{ pointerEvents: 'none' }}
+                />
               );
-            } else if (isPine) {
-              // Detailed pine tree with multiple tiers
+            }
+            
+            // Fallback: Simple SVG tree
+            if (isPine) {
               return (
                 <g key={key} style={{ pointerEvents: 'none' }}>
-                  {/* Trunk */}
-                  <rect x={feature.x - 2} y={feature.y - s * 0.05} width={4} height={s * 0.3} fill="url(#trunk-grad)" rx="1" />
-                  {/* Bottom tier - widest, darkest */}
-                  <polygon
-                    points={`${feature.x},${feature.y - s * 0.15} ${feature.x - s * 0.38},${feature.y + s * 0.1} ${feature.x + s * 0.38},${feature.y + s * 0.1}`}
-                    fill="#14532D"
-                  />
-                  {/* Second tier */}
-                  <polygon
-                    points={`${feature.x},${feature.y - s * 0.4} ${feature.x - s * 0.32},${feature.y - s * 0.05} ${feature.x + s * 0.32},${feature.y - s * 0.05}`}
-                    fill="#166534"
-                  />
-                  {/* Third tier */}
-                  <polygon
-                    points={`${feature.x},${feature.y - s * 0.65} ${feature.x - s * 0.26},${feature.y - s * 0.3} ${feature.x + s * 0.26},${feature.y - s * 0.3}`}
-                    fill="#15803D"
-                  />
-                  {/* Top tier - smallest, brightest */}
-                  <polygon
-                    points={`${feature.x},${feature.y - s * 0.9} ${feature.x - s * 0.18},${feature.y - s * 0.55} ${feature.x + s * 0.18},${feature.y - s * 0.55}`}
-                    fill="#16A34A"
-                  />
-                  {/* Highlight on right side */}
-                  <polygon
-                    points={`${feature.x},${feature.y - s * 0.9} ${feature.x + s * 0.05},${feature.y - s * 0.6} ${feature.x + s * 0.15},${feature.y - s * 0.58}`}
-                    fill="#22C55E"
-                    opacity="0.6"
-                  />
-                  <polygon
-                    points={`${feature.x},${feature.y - s * 0.65} ${feature.x + s * 0.08},${feature.y - s * 0.38} ${feature.x + s * 0.22},${feature.y - s * 0.32}`}
-                    fill="#22C55E"
-                    opacity="0.5"
-                  />
+                  <rect x={feature.x - 2} y={feature.y - s * 0.05} width={4} height={s * 0.3} fill="#78350F" rx="1" />
+                  <polygon points={`${feature.x},${feature.y - s * 0.15} ${feature.x - s * 0.38},${feature.y + s * 0.1} ${feature.x + s * 0.38},${feature.y + s * 0.1}`} fill="#14532D" />
+                  <polygon points={`${feature.x},${feature.y - s * 0.4} ${feature.x - s * 0.32},${feature.y - s * 0.05} ${feature.x + s * 0.32},${feature.y - s * 0.05}`} fill="#166534" />
+                  <polygon points={`${feature.x},${feature.y - s * 0.65} ${feature.x - s * 0.26},${feature.y - s * 0.3} ${feature.x + s * 0.26},${feature.y - s * 0.3}`} fill="#15803D" />
+                  <polygon points={`${feature.x},${feature.y - s * 0.9} ${feature.x - s * 0.18},${feature.y - s * 0.55} ${feature.x + s * 0.18},${feature.y - s * 0.55}`} fill="#16A34A" />
                 </g>
               );
             } else {
-              // Bush/shrub
               return (
                 <g key={key} style={{ pointerEvents: 'none' }}>
-                  <ellipse cx={feature.x + s * 0.08} cy={feature.y - s * 0.05} rx={s * 0.4} ry={s * 0.3} fill="#166534" />
-                  <ellipse cx={feature.x - s * 0.1} cy={feature.y - s * 0.12} rx={s * 0.38} ry={s * 0.28} fill="#15803D" />
-                  <ellipse cx={feature.x} cy={feature.y - s * 0.18} rx={s * 0.32} ry={s * 0.22} fill="#16A34A" />
-                  <ellipse cx={feature.x - s * 0.05} cy={feature.y - s * 0.22} rx={s * 0.18} ry={s * 0.12} fill="#22C55E" opacity="0.7" />
+                  <rect x={feature.x - 2} y={feature.y - s * 0.1} width={4} height={s * 0.25} fill="#78350F" rx="1" />
+                  <ellipse cx={feature.x} cy={feature.y - s * 0.45} rx={s * 0.4} ry={s * 0.35} fill="#14532D" />
+                  <ellipse cx={feature.x} cy={feature.y - s * 0.5} rx={s * 0.35} ry={s * 0.3} fill="#15803D" />
+                  <ellipse cx={feature.x - s * 0.05} cy={feature.y - s * 0.55} rx={s * 0.25} ry={s * 0.2} fill="#16A34A" />
+                  <ellipse cx={feature.x - s * 0.08} cy={feature.y - s * 0.6} rx={s * 0.15} ry={s * 0.12} fill="#22C55E" opacity="0.7" />
                 </g>
               );
             }
           }
           
           if (feature.type === 'forest') {
-            // Forest cluster - individual detailed trees, no dark oval background
             const s = feature.size;
-            const numTrees = 3 + feature.variant;
             
-            // Generate tree positions in a natural cluster
+            if (customSprites.forest) {
+              // Use custom uploaded sprite
+              const imgSize = s * 2.8;
+              return (
+                <image
+                  key={key}
+                  href={customSprites.forest}
+                  x={feature.x - imgSize / 2}
+                  y={feature.y - imgSize * 0.5}
+                  width={imgSize}
+                  height={imgSize * 0.7}
+                  style={{ pointerEvents: 'none' }}
+                />
+              );
+            }
+            
+            // Fallback: cluster of simple SVG trees
+            const numTrees = 3 + feature.variant;
             const treeData: { x: number; y: number; size: number; isPine: boolean }[] = [];
             for (let i = 0; i < numTrees; i++) {
               const angle = (i / numTrees) * Math.PI * 2 + seededRandom(feature.seed + i) * 1.2;
@@ -1588,138 +1804,94 @@ export function ProceduralMap({ nodes, links, isMaximized = false, onToggleMaxim
                 isPine: seededRandom(feature.seed + i + 30) > 0.5,
               });
             }
-            // Sort by y for proper depth ordering
             treeData.sort((a, b) => a.y - b.y);
             
             return (
               <g key={key} style={{ pointerEvents: 'none' }}>
-                {treeData.map((t, i) => {
-                  if (t.isPine) {
-                    // Mini pine tree
-                    return (
-                      <g key={`${key}-t-${i}`}>
-                        <rect x={t.x - 1.5} y={t.y - t.size * 0.05} width={3} height={t.size * 0.25} fill="#78350F" rx="0.5" />
-                        <polygon points={`${t.x},${t.y - t.size * 0.15} ${t.x - t.size * 0.3},${t.y + t.size * 0.08} ${t.x + t.size * 0.3},${t.y + t.size * 0.08}`} fill="#14532D" />
-                        <polygon points={`${t.x},${t.y - t.size * 0.45} ${t.x - t.size * 0.24},${t.y - t.size * 0.08} ${t.x + t.size * 0.24},${t.y - t.size * 0.08}`} fill="#166534" />
-                        <polygon points={`${t.x},${t.y - t.size * 0.72} ${t.x - t.size * 0.18},${t.y - t.size * 0.35} ${t.x + t.size * 0.18},${t.y - t.size * 0.35}`} fill="#15803D" />
-                        <polygon points={`${t.x},${t.y - t.size * 0.72} ${t.x + t.size * 0.05},${t.y - t.size * 0.45} ${t.x + t.size * 0.14},${t.y - t.size * 0.4}`} fill="#22C55E" opacity="0.5" />
-                      </g>
-                    );
-                  } else {
-                    // Mini deciduous tree
-                    return (
-                      <g key={`${key}-t-${i}`}>
-                        <rect x={t.x - 1.5} y={t.y - t.size * 0.15} width={3} height={t.size * 0.28} fill="#78350F" rx="0.5" />
-                        <ellipse cx={t.x + t.size * 0.08} cy={t.y - t.size * 0.32} rx={t.size * 0.32} ry={t.size * 0.28} fill="#14532D" />
-                        <ellipse cx={t.x - t.size * 0.05} cy={t.y - t.size * 0.38} rx={t.size * 0.3} ry={t.size * 0.26} fill="#15803D" />
-                        <ellipse cx={t.x} cy={t.y - t.size * 0.42} rx={t.size * 0.25} ry={t.size * 0.2} fill="#16A34A" />
-                        <ellipse cx={t.x - t.size * 0.05} cy={t.y - t.size * 0.48} rx={t.size * 0.15} ry={t.size * 0.12} fill="#22C55E" opacity="0.7" />
-                      </g>
-                    );
-                  }
-                })}
+                {treeData.map((t, i) => (
+                  t.isPine ? (
+                    <g key={`${key}-t-${i}`}>
+                      <rect x={t.x - 1.5} y={t.y - t.size * 0.05} width={3} height={t.size * 0.25} fill="#78350F" rx="0.5" />
+                      <polygon points={`${t.x},${t.y - t.size * 0.6} ${t.x - t.size * 0.25},${t.y + t.size * 0.05} ${t.x + t.size * 0.25},${t.y + t.size * 0.05}`} fill="#15803D" />
+                    </g>
+                  ) : (
+                    <g key={`${key}-t-${i}`}>
+                      <rect x={t.x - 1.5} y={t.y - t.size * 0.15} width={3} height={t.size * 0.28} fill="#78350F" rx="0.5" />
+                      <ellipse cx={t.x} cy={t.y - t.size * 0.38} rx={t.size * 0.28} ry={t.size * 0.24} fill="#15803D" />
+                      <ellipse cx={t.x} cy={t.y - t.size * 0.42} rx={t.size * 0.2} ry={t.size * 0.16} fill="#16A34A" />
+                    </g>
+                  )
+                ))}
               </g>
             );
           }
           
           if (feature.type === 'mountain') {
-            // Mountain sitting on ground (no floating shadow)
             const s = feature.size;
             const h = s * 1.3;
             const hasSnow = s > 25;
-            const hasPeak2 = feature.variant > 0 && s > 30;
             
+            if (customSprites.mountain) {
+              // Use custom uploaded sprite
+              const imgSize = s * 3;
+              return (
+                <image
+                  key={key}
+                  href={customSprites.mountain}
+                  x={feature.x - imgSize / 2}
+                  y={feature.y - imgSize * 0.7}
+                  width={imgSize}
+                  height={imgSize * 0.8}
+                  style={{ pointerEvents: 'none' }}
+                />
+              );
+            }
+            
+            // Fallback: Simple SVG mountain
             return (
               <g key={key} style={{ pointerEvents: 'none' }}>
-                {/* Secondary peak behind (if large) */}
-                {hasPeak2 && (
-                  <>
-                    <polygon
-                      points={`${feature.x + s * 0.35},${feature.y - h * 0.65} ${feature.x},${feature.y} ${feature.x + s * 0.7},${feature.y}`}
-                      fill="#6B7280"
-                    />
-                    <polygon
-                      points={`${feature.x + s * 0.35},${feature.y - h * 0.65} ${feature.x},${feature.y} ${feature.x + s * 0.35},${feature.y}`}
-                      fill="#4B5563"
-                    />
-                  </>
-                )}
-                
-                {/* Main mountain body - grounded */}
-                <polygon
-                  points={`${feature.x},${feature.y - h} ${feature.x - s * 0.55},${feature.y} ${feature.x + s * 0.55},${feature.y}`}
-                  fill="#9CA3AF"
-                />
-                {/* Left face - darker shading */}
-                <polygon
-                  points={`${feature.x},${feature.y - h} ${feature.x - s * 0.55},${feature.y} ${feature.x - s * 0.05},${feature.y}`}
-                  fill="#6B7280"
-                />
-                {/* Ridge highlights */}
-                <polygon
-                  points={`${feature.x},${feature.y - h} ${feature.x + s * 0.08},${feature.y - h * 0.5} ${feature.x + s * 0.25},${feature.y - h * 0.3} ${feature.x + s * 0.15},${feature.y - h * 0.35}`}
-                  fill="#D1D5DB"
-                  opacity="0.4"
-                />
-                {/* Rocky texture lines */}
-                <path d={`M ${feature.x - s * 0.3} ${feature.y - h * 0.3} L ${feature.x - s * 0.15} ${feature.y - h * 0.5}`} stroke="#4B5563" strokeWidth="1" opacity="0.3" />
-                <path d={`M ${feature.x + s * 0.2} ${feature.y - h * 0.25} L ${feature.x + s * 0.35} ${feature.y - h * 0.15}`} stroke="#6B7280" strokeWidth="1" opacity="0.3" />
-                
-                {/* Snow cap */}
+                <polygon points={`${feature.x},${feature.y - h} ${feature.x - s * 0.55},${feature.y} ${feature.x + s * 0.55},${feature.y}`} fill="#9CA3AF" />
+                <polygon points={`${feature.x},${feature.y - h} ${feature.x - s * 0.55},${feature.y} ${feature.x - s * 0.05},${feature.y}`} fill="#6B7280" />
                 {hasSnow && (
-                  <>
-                    <polygon
-                      points={`${feature.x},${feature.y - h} ${feature.x - s * 0.22},${feature.y - h * 0.58} ${feature.x + s * 0.22},${feature.y - h * 0.58}`}
-                      fill="#F9FAFB"
-                    />
-                    {/* Snow drip on left */}
-                    <polygon
-                      points={`${feature.x - s * 0.15},${feature.y - h * 0.58} ${feature.x - s * 0.22},${feature.y - h * 0.42} ${feature.x - s * 0.1},${feature.y - h * 0.52}`}
-                      fill="#F3F4F6"
-                    />
-                    {/* Snow drip on right */}
-                    <polygon
-                      points={`${feature.x + s * 0.1},${feature.y - h * 0.58} ${feature.x + s * 0.18},${feature.y - h * 0.48} ${feature.x + s * 0.08},${feature.y - h * 0.5}`}
-                      fill="#FFFFFF"
-                    />
-                  </>
+                  <polygon points={`${feature.x},${feature.y - h} ${feature.x - s * 0.2},${feature.y - h * 0.6} ${feature.x + s * 0.2},${feature.y - h * 0.6}`} fill="#F9FAFB" />
                 )}
               </g>
             );
           }
           
           if (feature.type === 'rock') {
-            // Rock formation - grounded, no floating shadow
             const s = feature.size;
             const numRocks = 1 + feature.variant;
             
+            if (customSprites.rock) {
+              // Use custom uploaded sprite
+              const imgSize = s * 3;
+              return (
+                <image
+                  key={key}
+                  href={customSprites.rock}
+                  x={feature.x - imgSize / 2}
+                  y={feature.y - imgSize * 0.4}
+                  width={imgSize}
+                  height={imgSize * 0.6}
+                  style={{ pointerEvents: 'none' }}
+                />
+              );
+            }
+            
+            // Fallback: Simple SVG rocks
             return (
               <g key={key} style={{ pointerEvents: 'none' }}>
-                {/* Back rocks (if multiple) */}
-                {numRocks > 1 && (
-                  <>
-                    <ellipse cx={feature.x + s * 0.25} cy={feature.y - s * 0.05} rx={s * 0.32} ry={s * 0.25} fill="#6B7280" />
-                    <ellipse cx={feature.x + s * 0.2} cy={feature.y - s * 0.12} rx={s * 0.12} ry={s * 0.08} fill="#9CA3AF" opacity="0.5" />
-                  </>
-                )}
-                {numRocks > 2 && (
-                  <ellipse cx={feature.x - s * 0.3} cy={feature.y + s * 0.05} rx={s * 0.22} ry={s * 0.18} fill="#9CA3AF" />
-                )}
-                
-                {/* Main rock */}
+                {numRocks > 1 && <ellipse cx={feature.x + s * 0.25} cy={feature.y - s * 0.05} rx={s * 0.32} ry={s * 0.25} fill="#6B7280" />}
+                {numRocks > 2 && <ellipse cx={feature.x - s * 0.3} cy={feature.y + s * 0.05} rx={s * 0.22} ry={s * 0.18} fill="#9CA3AF" />}
                 <ellipse cx={feature.x} cy={feature.y} rx={s * 0.45} ry={s * 0.35} fill="#9CA3AF" />
-                {/* Shading */}
-                <ellipse cx={feature.x + s * 0.1} cy={feature.y + s * 0.08} rx={s * 0.35} ry={s * 0.25} fill="#6B7280" opacity="0.5" />
-                {/* Highlight */}
                 <ellipse cx={feature.x - s * 0.12} cy={feature.y - s * 0.1} rx={s * 0.18} ry={s * 0.12} fill="#D1D5DB" opacity="0.6" />
-                {/* Detail crack */}
-                <path d={`M ${feature.x - s * 0.1} ${feature.y + s * 0.15} Q ${feature.x + s * 0.05} ${feature.y} ${feature.x + s * 0.2} ${feature.y + s * 0.1}`} stroke="#4B5563" strokeWidth="0.8" fill="none" opacity="0.4" />
               </g>
             );
           }
           
           if (feature.type === 'lake') {
-            // Lake with shore
+            // Lakes stay as procedural SVG (organic shapes)
             const s = feature.size;
             const lakePoints: Point[] = [];
             const numPoints = 10;
@@ -1733,7 +1905,6 @@ export function ProceduralMap({ nodes, links, isMaximized = false, onToggleMaxim
               });
             }
             
-            // Shore points
             const shorePoints: Point[] = lakePoints.map((p) => ({
               x: feature.x + (p.x - feature.x) * 1.18,
               y: feature.y + (p.y - feature.y) * 1.18,
@@ -1741,15 +1912,10 @@ export function ProceduralMap({ nodes, links, isMaximized = false, onToggleMaxim
             
             return (
               <g key={key} style={{ pointerEvents: 'none' }}>
-                {/* Shore/sand */}
                 <path d={pointsToPath(shorePoints, feature.seed, 0)} fill="#D4A574" opacity="0.5" />
-                {/* Water body */}
                 <path d={pointsToPath(lakePoints, feature.seed, 0)} fill="#3B82F6" />
-                {/* Water depth gradient - darker center */}
                 <ellipse cx={feature.x + s * 0.05} cy={feature.y + s * 0.03} rx={s * 0.3} ry={s * 0.15} fill="#2563EB" opacity="0.4" />
-                {/* Light reflection */}
                 <ellipse cx={feature.x - s * 0.15} cy={feature.y - s * 0.08} rx={s * 0.18} ry={s * 0.06} fill="#93C5FD" opacity="0.6" />
-                <ellipse cx={feature.x - s * 0.1} cy={feature.y - s * 0.05} rx={s * 0.08} ry={s * 0.03} fill="#BFDBFE" opacity="0.7" />
               </g>
             );
           }
