@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ProceduralMap } from "@/components/arc/ProceduralMap";
-import { MapTileEditor, TerrainType } from "@/components/arc/MapTileEditor";
 
 type MapResident = {
   id: string;
@@ -42,89 +41,95 @@ type MapPageClientProps = {
   locations: Location[];
 };
 
-type MapMode = 'view' | 'edit';
+// Editor data type (must match ProceduralMapEditor)
+type EditorData = {
+  locationPositions: Record<string, { x: number; y: number }>;
+  decorations: unknown[];
+  customRoads: unknown[];
+  mapSeed: number;
+  disableProceduralTerrain?: boolean;
+};
 
-const TILES_STORAGE_KEY = 'map-tiles-data';
-const GRID_SIZE = 64;
+const EDITOR_DATA_KEY = 'procedural-map-editor-data';
 
 export function MapPageClient({ nodes, links, locations }: MapPageClientProps) {
   const [isMaximized, setIsMaximized] = useState(false);
-  const [mode, setMode] = useState<MapMode>('view');
-  const [tiles, setTiles] = useState<(TerrainType | null)[][] | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editorData, setEditorData] = useState<EditorData | null>(null);
+  const [dataVersion, setDataVersion] = useState(0); // Force re-render when data changes
   
-  // Load tiles from localStorage on mount
+  // Load saved edits on mount
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(TILES_STORAGE_KEY);
+      const saved = localStorage.getItem(EDITOR_DATA_KEY);
       if (saved) {
-        setTiles(JSON.parse(saved));
+        setEditorData(JSON.parse(saved));
       }
     } catch (e) {
-      console.warn('Failed to load saved tiles:', e);
+      console.warn('Failed to load saved edits:', e);
     }
+  }, [dataVersion]);
+
+  // Handle save from editor - reload data
+  const handleSave = useCallback(() => {
+    // Bump version to trigger reload from localStorage
+    setDataVersion(v => v + 1);
   }, []);
   
-  // Save tiles when they change
-  const handleTilesChange = (newTiles: (TerrainType | null)[][]) => {
-    setTiles(newTiles);
-    try {
-      localStorage.setItem(TILES_STORAGE_KEY, JSON.stringify(newTiles));
-    } catch (e) {
-      console.warn('Failed to save tiles:', e);
-    }
-  };
+  // Handle close from editor - reload data in case it changed
+  const handleCloseEditor = useCallback(() => {
+    setIsEditing(false);
+    setDataVersion(v => v + 1);
+  }, []);
 
-  // Edit mode - full screen tile editor
-  if (mode === 'edit') {
-    return (
-      <div className="fixed inset-0 z-50 bg-gray-900">
-        <MapTileEditor
-          gridSize={GRID_SIZE}
-          tileSize={16}
-          initialTiles={tiles ?? undefined}
-          onTilesChange={handleTilesChange}
-          onClose={() => setMode('view')}
-        />
-      </div>
-    );
-  }
-
-  // View mode - normal map view
+  // Render map (edit or view mode)
   return (
     <div className="space-y-4">
       {/* Mode toggle header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setMode('view')}
-            className="px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-indigo-600 text-white"
+            onClick={() => setIsEditing(false)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              !isEditing ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
           >
-            🗺️ View Mode
+            🗺️ View Map
           </button>
           <button
-            onClick={() => setMode('edit')}
-            className="px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-200 text-gray-700 hover:bg-gray-300"
+            onClick={() => setIsEditing(true)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              isEditing ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
           >
-            🎨 Edit Terrain
+            ✏️ Edit Map
           </button>
         </div>
         
-        {tiles && (
+        {editorData && (
           <span className="text-xs text-muted-foreground">
-            ✓ Custom terrain saved ({GRID_SIZE}×{GRID_SIZE})
+            ✓ Custom edits saved
           </span>
         )}
       </div>
       
-      <div className={isMaximized ? "flex flex-col gap-6" : "grid gap-6 lg:grid-cols-[2fr_1fr]"}>
+      <div className={isMaximized || isEditing ? "flex flex-col gap-6" : "grid gap-6 lg:grid-cols-[2fr_1fr]"}>
         <div className="rounded-lg bg-background p-4">
           <ProceduralMap 
             nodes={nodes} 
             links={links} 
-            isMaximized={isMaximized}
-            onToggleMaximize={() => setIsMaximized(!isMaximized)}
-            customTiles={tiles ?? undefined}
-            gridSize={GRID_SIZE}
+            isMaximized={isMaximized || isEditing}
+            onToggleMaximize={isEditing ? undefined : () => setIsMaximized(!isMaximized)}
+            customPositions={editorData?.locationPositions}
+            customDecorations={editorData?.decorations}
+            customRoads={editorData?.customRoads}
+            mapSeedOverride={editorData?.mapSeed}
+            disableProceduralTerrain={editorData?.disableProceduralTerrain}
+            editMode={isEditing}
+            onExitEditMode={() => {
+              setIsEditing(false);
+              setDataVersion(v => v + 1);
+            }}
           />
         </div>
 

@@ -340,12 +340,67 @@ function buildMapLinks(nodes: MapNode[]) {
   // Create a map for quick lookup
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
   
-  // Only connect children to their parents (no circular connections)
+  // Connect children to their parents, but skip province->country connections
   nodes.forEach((node) => {
     if (node.parentLocationId && nodeMap.has(node.parentLocationId)) {
       const parent = nodeMap.get(node.parentLocationId)!;
+      
+      // Don't draw roads from provinces to countries
+      // Roads should only connect: cities->provinces, towns->provinces/cities
+      if (node.locationType === 'province' && parent.locationType === 'country') {
+        return; // Skip this link
+      }
+      
       links.push({ from: parent, to: node });
     }
+  });
+  
+  // Connect provinces within the same country to each other
+  const provinces = nodes.filter(n => n.locationType === 'province');
+  
+  // Group provinces by their parent country
+  const provincesByCountry = new Map<string, MapNode[]>();
+  provinces.forEach(province => {
+    if (province.parentLocationId) {
+      const existing = provincesByCountry.get(province.parentLocationId) || [];
+      existing.push(province);
+      provincesByCountry.set(province.parentLocationId, existing);
+    }
+  });
+  
+  // For each country, connect its provinces to each other (hub pattern from first province)
+  provincesByCountry.forEach((countryProvinces) => {
+    if (countryProvinces.length < 2) return; // Need at least 2 provinces
+    
+    // Connect each province to the nearest 1-2 other provinces for a network
+    countryProvinces.forEach((province, index) => {
+      // Calculate distances to other provinces
+      const distances = countryProvinces
+        .filter((_, i) => i !== index)
+        .map(otherProvince => ({
+          province: otherProvince,
+          distance: Math.sqrt(
+            Math.pow(province.x - otherProvince.x, 2) + 
+            Math.pow(province.y - otherProvince.y, 2)
+          )
+        }))
+        .sort((a, b) => a.distance - b.distance);
+      
+      // Connect to 1-2 nearest provinces (creates a connected network without too many roads)
+      const connectTo = countryProvinces.length > 3 ? 2 : 1;
+      distances.slice(0, connectTo).forEach(({ province: otherProvince }) => {
+        // Avoid duplicate links (check if reverse already exists)
+        const alreadyExists = links.some(
+          link => 
+            (link.from.id === province.id && link.to.id === otherProvince.id) ||
+            (link.from.id === otherProvince.id && link.to.id === province.id)
+        );
+        
+        if (!alreadyExists) {
+          links.push({ from: province, to: otherProvince });
+        }
+      });
+    });
   });
 
   return links;
