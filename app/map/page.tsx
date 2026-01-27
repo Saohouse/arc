@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireStory } from "@/lib/story";
-import { ProceduralMap } from "@/components/arc/ProceduralMap";
+import { MapPageClient } from "./MapPageClient";
 
 const MAP_WIDTH = 1000;
 const MAP_HEIGHT = 600;
@@ -41,20 +40,51 @@ function hashString(input: string) {
 
 /**
  * Check if a location should be positioned near water based on its description
+ * Returns false for explicitly inland locations, true for coastal locations
  */
 function isCoastalLocation(summary: string | null, overview: string | null, tags: string): boolean {
   const text = `${summary || ''} ${overview || ''} ${tags || ''}`.toLowerCase();
   if (!text.trim()) return false;
   
-  const coastalKeywords = [
-    'port', 'harbor', 'harbour', 'coastal', 'coast', 'seaside', 'waterfront',
-    'bay', 'dock', 'wharf', 'marina', 'beach', 'shore', 'seafront',
-    'nautical', 'maritime', 'naval', 'fishing village', 'fishing port',
-    'ocean', 'sea ', ' sea', 'lake ', 'lakeside', 'riverside', 'river port',
-    'estuary', 'peninsula', 'island', 'archipelago', 'reef'
+  // INLAND keywords - if ANY of these are present, the location is NOT coastal
+  const inlandKeywords = [
+    'inland', 'interior', 'landlocked', 'mountain', 'mountainous', 'highland',
+    'hilltop', 'hill town', 'valley', 'forest', 'woodland', 'woods',
+    'plains', 'prairie', 'grassland', 'meadow', 'pasture',
+    'desert', 'mesa', 'canyon', 'cave', 'underground', 'subterranean',
+    'central', 'heartland', 'midland', 'upland', 'farmland', 'agricultural',
+    'rural', 'countryside', 'village', 'hamlet', 'farming', 'ranching',
+    'trade hub', 'trading post', 'crossroads', 'market town', 'merchant'
   ];
   
-  return coastalKeywords.some(keyword => text.includes(keyword));
+  // Check for inland keywords first - these override coastal
+  if (inlandKeywords.some(keyword => text.includes(keyword))) {
+    return false;
+  }
+  
+  // COASTAL keywords - must be EXPLICITLY water-related
+  // Removed generic terms that could apply to inland locations
+  const coastalKeywords = [
+    'port city', 'port town', 'seaport', 'harbor', 'harbour', 
+    'coastal', 'coast', 'seaside', 'waterfront', 'seafront',
+    'bay', 'dock', 'wharf', 'marina', 'beach', 'shoreline',
+    'nautical', 'maritime', 'naval', 'naval base',
+    'fishing village', 'fishing port', 'fishing harbor',
+    'ocean', 'oceanside', 'lakeside', 'lakefront',
+    'estuary', 'peninsula', 'island', 'archipelago', 'reef',
+    'lighthouse', 'pier', 'boardwalk', 'cove', 'inlet'
+  ];
+  
+  // Use word boundary matching for all keywords to be more precise
+  return coastalKeywords.some(keyword => {
+    // For multi-word keywords, just check includes
+    if (keyword.includes(' ')) {
+      return text.includes(keyword);
+    }
+    // For single words, use word boundary to avoid partial matches
+    const regex = new RegExp(`\\b${keyword}\\b`, 'i');
+    return regex.test(text);
+  });
 }
 
 function buildMapNodes(locations: Array<{ 
@@ -173,31 +203,19 @@ function buildMapNodes(locations: Array<{
       
       if (isCoastal) {
         // COASTAL CITIES: Position near the COUNTRY edge, not relative to province!
-        // Find the grandparent country
         const grandparentId = parent.parentLocationId;
-        
-        // DEBUG
-        if (city.name.toLowerCase().includes('saltmere')) {
-          console.log('🌊 SALTMERE COASTAL DEBUG:');
-          console.log('  - Parent province:', parent.name, 'at', parent.x, parent.y);
-          console.log('  - Parent parentLocationId:', parent.parentLocationId);
-          console.log('  - grandparentId:', grandparentId);
-          console.log('  - positionedNodes has grandparent:', grandparentId ? positionedNodes.has(grandparentId) : 'N/A');
-        }
         
         if (grandparentId && positionedNodes.has(grandparentId)) {
           const country = positionedNodes.get(grandparentId)!;
           
           // Calculate direction from country center OUTWARD (toward coast)
-          // Use province position to determine general direction
           const dirX = parent.x - country.x;
           const dirY = parent.y - country.y;
           const dirLength = Math.sqrt(dirX * dirX + dirY * dirY);
           const normalizedDirX = dirX / dirLength;
           const normalizedDirY = dirY / dirLength;
           
-          // Position city at the country edge (country radius is ~350-400px)
-          // Place coastal city at ~320px from country center (near edge!)
+          // Position city at the country edge
           const coastDistance = 310;
           x = country.x + normalizedDirX * coastDistance;
           y = country.y + normalizedDirY * coastDistance;
@@ -206,26 +224,11 @@ function buildMapNodes(locations: Array<{
           const offsetAngle = angle * 0.3;
           x += Math.cos(offsetAngle) * 30;
           y += Math.sin(offsetAngle) * 30;
-          
-          // DEBUG
-          if (city.name.toLowerCase().includes('saltmere')) {
-            console.log('  - Country:', country.name, 'at', country.x, country.y);
-            console.log('  - Direction:', normalizedDirX, normalizedDirY);
-            console.log('  - Coast distance:', coastDistance);
-            console.log('  - FINAL position:', x, y);
-          }
         } else {
           // Fallback: position far from province
           const distance = 150;
           x = parent.x + Math.cos(angle) * distance;
           y = parent.y + Math.sin(angle) * distance;
-          
-          // DEBUG
-          if (city.name.toLowerCase().includes('saltmere')) {
-            console.log('  - FALLBACK! No grandparent found');
-            console.log('  - Using distance:', distance);
-            console.log('  - FINAL position:', x, y);
-          }
         }
       } else {
         // INLAND CITIES: Position near province center
@@ -379,28 +382,12 @@ export default async function MapPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="text-sm text-muted-foreground">Atlas / Map</div>
-          <h1 className="text-3xl font-semibold">🗺️ World Map</h1>
-          <p className="text-sm text-muted-foreground">
-            {currentStory.name} - Procedural hierarchical map with regions and roads.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <Link
-            href="/archive/locations/new"
-            className="rounded-md border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
-          >
-            New location
-          </Link>
-          <Link
-            href="/archive/characters/new"
-            className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background hover:bg-foreground/90"
-          >
-            New character
-          </Link>
-        </div>
+      <div>
+        <div className="text-sm text-muted-foreground">Atlas / Map</div>
+        <h1 className="text-3xl font-semibold">🗺️ World Map</h1>
+        <p className="text-sm text-muted-foreground">
+          {currentStory.name} - Procedural hierarchical map with regions and roads.
+        </p>
       </div>
 
       {locations.length === 0 ? (
@@ -408,48 +395,15 @@ export default async function MapPage() {
           Add locations to generate the first map.
         </div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-          <div className="rounded-lg bg-background p-4">
-            <ProceduralMap nodes={nodes} links={links} />
-          </div>
-
-          <div className="space-y-4">
-            {locations.map((location) => (
-              <div key={location.id} className="rounded-lg border p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <Link
-                    href={`/archive/locations/${location.id}`}
-                    className="text-sm font-semibold hover:text-foreground"
-                  >
-                    {location.name}
-                  </Link>
-                  <span className="text-xs text-muted-foreground">
-                    {location.residents.length} resident
-                    {location.residents.length === 1 ? "" : "s"}
-                  </span>
-                </div>
-                {location.residents.length ? (
-                  <div className="mt-3 space-y-1 text-sm text-muted-foreground">
-                    {location.residents.map((resident) => (
-                      <Link
-                        key={resident.id}
-                        href={`/archive/characters/${resident.id}`}
-                        className="block hover:text-foreground"
-                      >
-                        {resident.name}
-                      </Link>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="mt-3 text-xs text-muted-foreground">
-                    No residents yet. Assign a home location to connect a
-                    character.
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+        <MapPageClient 
+          nodes={nodes} 
+          links={links} 
+          locations={locations.map(l => ({
+            id: l.id,
+            name: l.name,
+            residents: l.residents
+          }))}
+        />
       )}
     </div>
   );

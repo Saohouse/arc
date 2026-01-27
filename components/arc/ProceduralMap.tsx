@@ -44,6 +44,8 @@ type MapLink = {
 type ProceduralMapProps = {
   nodes: MapNode[];
   links: MapLink[];
+  isMaximized?: boolean;
+  onToggleMaximize?: () => void;
 };
 
 type Region = {
@@ -53,18 +55,49 @@ type Region = {
 };
 
 // Helper to detect coastal locations from their description
+// Returns false for explicitly inland locations, true for coastal locations
 function isCoastalLocation(summary: string | null, overview: string | null, tags: string): boolean {
   const text = `${summary || ''} ${overview || ''} ${tags || ''}`.toLowerCase();
   if (!text.trim()) return false;
   
-  const coastalKeywords = [
-    'coast', 'coastal', 'port', 'harbor', 'harbour', 'bay', 'beach', 'seaside',
-    'maritime', 'naval', 'fishing', 'dock', 'pier', 'wharf', 'ocean', 'sea',
-    'waterfront', 'shore', 'shoreline', 'marina', 'lighthouse', 'island',
-    'peninsula', 'cape', 'cove', 'inlet'
+  // INLAND keywords - if ANY of these are present, the location is NOT coastal
+  const inlandKeywords = [
+    'inland', 'interior', 'landlocked', 'mountain', 'mountainous', 'highland',
+    'hilltop', 'hill town', 'valley', 'forest', 'woodland', 'woods',
+    'plains', 'prairie', 'grassland', 'meadow', 'pasture',
+    'desert', 'mesa', 'canyon', 'cave', 'underground', 'subterranean',
+    'central', 'heartland', 'midland', 'upland', 'farmland', 'agricultural',
+    'rural', 'countryside', 'village', 'hamlet', 'farming', 'ranching',
+    'trade hub', 'trading post', 'crossroads', 'market town', 'merchant'
   ];
   
-  return coastalKeywords.some(keyword => text.includes(keyword));
+  // Check for inland keywords first - these override coastal
+  if (inlandKeywords.some(keyword => text.includes(keyword))) {
+    return false;
+  }
+  
+  // COASTAL keywords - must be EXPLICITLY water-related
+  const coastalKeywords = [
+    'port city', 'port town', 'seaport', 'harbor', 'harbour', 
+    'coastal', 'coast', 'seaside', 'waterfront', 'seafront',
+    'bay', 'dock', 'wharf', 'marina', 'beach', 'shoreline',
+    'nautical', 'maritime', 'naval', 'naval base',
+    'fishing village', 'fishing port', 'fishing harbor',
+    'ocean', 'oceanside', 'lakeside', 'lakefront',
+    'estuary', 'peninsula', 'island', 'archipelago', 'reef',
+    'lighthouse', 'pier', 'boardwalk', 'cove', 'inlet'
+  ];
+  
+  // Use word boundary matching for all keywords to be more precise
+  return coastalKeywords.some(keyword => {
+    // For multi-word keywords, just check includes
+    if (keyword.includes(' ')) {
+      return text.includes(keyword);
+    }
+    // For single words, use word boundary to avoid partial matches
+    const regex = new RegExp(`\\b${keyword}\\b`, 'i');
+    return regex.test(text);
+  });
 }
 
 // Shape generation parameters (adjustable in dev mode)
@@ -112,7 +145,7 @@ const defaultParams: ShapeParams = {
   roadSegments: 4,
 };
 
-export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
+export function ProceduralMap({ nodes, links, isMaximized = false, onToggleMaximize }: ProceduralMapProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [viewBox, setViewBox] = useState({
     x: 0,
@@ -126,10 +159,43 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
   const [regions, setRegions] = useState<Region[]>([]);
   const [mapSeed, setMapSeed] = useState(0); // For regeneration
   const [nodePositions, setNodePositions] = useState<Map<string, { x: number; y: number }>>(new Map());
+  const [labelOffsets, setLabelOffsets] = useState<Map<string, { x: number; y: number }>>(new Map());
   
   // Dev mode state
   const [devMode, setDevMode] = useState(false);
   const [shapeParams, setShapeParams] = useState<ShapeParams>(defaultParams);
+
+  // Helper: Calculate the centroid (visual center) of a polygon
+  const getPolygonCentroid = (shape: Point[]): { x: number; y: number } => {
+    if (shape.length === 0) return { x: 0, y: 0 };
+    
+    let sumX = 0;
+    let sumY = 0;
+    let sumArea = 0;
+    
+    // Use the shoelace formula for centroid
+    for (let i = 0; i < shape.length; i++) {
+      const p1 = shape[i];
+      const p2 = shape[(i + 1) % shape.length];
+      const cross = p1.x * p2.y - p2.x * p1.y;
+      sumArea += cross;
+      sumX += (p1.x + p2.x) * cross;
+      sumY += (p1.y + p2.y) * cross;
+    }
+    
+    const area = sumArea / 2;
+    if (Math.abs(area) < 0.0001) {
+      // Fallback to simple average if area is too small
+      const avgX = shape.reduce((sum, p) => sum + p.x, 0) / shape.length;
+      const avgY = shape.reduce((sum, p) => sum + p.y, 0) / shape.length;
+      return { x: avgX, y: avgY };
+    }
+    
+    return {
+      x: sumX / (6 * area),
+      y: sumY / (6 * area),
+    };
+  };
 
   // Helper: Find where a ray from center intersects the polygon boundary
   const findBoundaryPoint = (
@@ -424,6 +490,115 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
     setNodePositions(repositionedNodes);
   }, [nodes, mapSeed, shapeParams]); // Regenerate when mapSeed or params change
 
+  // Label collision detection and avoidance
+  useEffect(() => {
+    // Only process cities and towns (not country/province labels)
+    const cityTownNodes = nodes.filter(
+      (n) => n.locationType === "city" || n.locationType === "town"
+    );
+    
+    if (cityTownNodes.length < 2) {
+      setLabelOffsets(new Map());
+      return;
+    }
+    
+    // Constants for label sizing (must match render constants)
+    const baseCharWidth = 7;
+    const basePadding = 6;
+    const baseBoxHeight = 16;
+    const baseNameOffset = 28;
+    
+    // Calculate label bounding boxes
+    type LabelBox = {
+      id: string;
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      offsetX: number;
+      offsetY: number;
+    };
+    
+    const labelBoxes: LabelBox[] = cityTownNodes.map((node) => {
+      const pos = nodePositions.get(node.id) || { x: node.x, y: node.y };
+      const textWidth = node.name.length * baseCharWidth;
+      const boxWidth = textWidth + basePadding * 2;
+      const boxHeight = baseBoxHeight;
+      
+      return {
+        id: node.id,
+        x: pos.x - boxWidth / 2,
+        y: pos.y + baseNameOffset - boxHeight / 2,
+        width: boxWidth,
+        height: boxHeight,
+        offsetX: 0,
+        offsetY: 0,
+      };
+    });
+    
+    // Check for collisions and apply offsets
+    const checkOverlap = (a: LabelBox, b: LabelBox): boolean => {
+      return !(
+        a.x + a.width + a.offsetX < b.x + b.offsetX ||
+        b.x + b.width + b.offsetX < a.x + a.offsetX ||
+        a.y + a.height + a.offsetY < b.y + b.offsetY ||
+        b.y + b.height + b.offsetY < a.y + a.offsetY
+      );
+    };
+    
+    // Multiple passes to resolve collisions
+    for (let pass = 0; pass < 10; pass++) {
+      let hasCollision = false;
+      
+      for (let i = 0; i < labelBoxes.length; i++) {
+        for (let j = i + 1; j < labelBoxes.length; j++) {
+          const a = labelBoxes[i];
+          const b = labelBoxes[j];
+          
+          if (checkOverlap(a, b)) {
+            hasCollision = true;
+            
+            // Calculate push direction
+            const aCenterX = a.x + a.width / 2 + a.offsetX;
+            const aCenterY = a.y + a.height / 2 + a.offsetY;
+            const bCenterX = b.x + b.width / 2 + b.offsetX;
+            const bCenterY = b.y + b.height / 2 + b.offsetY;
+            
+            let pushX = aCenterX - bCenterX;
+            let pushY = aCenterY - bCenterY;
+            
+            // If centers are the same, push in a default direction
+            if (Math.abs(pushX) < 0.1 && Math.abs(pushY) < 0.1) {
+              pushX = 1;
+              pushY = 0.5;
+            }
+            
+            // Normalize and apply push
+            const dist = Math.sqrt(pushX * pushX + pushY * pushY);
+            const pushAmount = 12; // Pixels to push apart per iteration
+            
+            a.offsetX += (pushX / dist) * pushAmount;
+            a.offsetY += (pushY / dist) * pushAmount;
+            b.offsetX -= (pushX / dist) * pushAmount;
+            b.offsetY -= (pushY / dist) * pushAmount;
+          }
+        }
+      }
+      
+      if (!hasCollision) break;
+    }
+    
+    // Create offset map
+    const newOffsets = new Map<string, { x: number; y: number }>();
+    labelBoxes.forEach((box) => {
+      if (Math.abs(box.offsetX) > 0.1 || Math.abs(box.offsetY) > 0.1) {
+        newOffsets.set(box.id, { x: box.offsetX, y: box.offsetY });
+      }
+    });
+    
+    setLabelOffsets(newOffsets);
+  }, [nodes, nodePositions]);
+
   const handleWheel = (e: WheelEvent<SVGSVGElement>) => {
     e.preventDefault();
     const scaleFactor = e.deltaY > 0 ? 1.1 : 0.9;
@@ -584,6 +759,29 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
             <path d="M3 3 L4.5 4.5 M11.5 11.5 L13 13 M3 13 L4.5 11.5 M11.5 4.5 L13 3" />
           </svg>
         </button>
+        {onToggleMaximize && (
+          <button
+            onClick={onToggleMaximize}
+            className={`rounded p-1.5 shadow-sm border ${isMaximized ? 'bg-blue-500 text-white border-blue-600' : 'bg-white/90 hover:bg-gray-100 border-gray-200'}`}
+            title={isMaximized ? "Minimize map" : "Maximize map"}
+          >
+            {isMaximized ? (
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 12 L1 12 L1 15" />
+                <path d="M12 4 L15 4 L15 1" />
+                <path d="M1 12 L6 7" />
+                <path d="M15 4 L10 9" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M1 6 L1 1 L6 1" />
+                <path d="M15 10 L15 15 L10 15" />
+                <path d="M1 1 L6 6" />
+                <path d="M15 15 L10 10" />
+              </svg>
+            )}
+          </button>
+        )}
       </div>
       
       {/* Dev Mode Panel */}
@@ -838,7 +1036,7 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
       <svg
         ref={svgRef}
         viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
-        className="h-[600px] w-full cursor-grab active:cursor-grabbing rounded-lg border"
+        className={`${isMaximized ? 'h-[80vh]' : 'h-[600px]'} w-full cursor-grab active:cursor-grabbing rounded-lg border`}
         role="img"
         aria-label="Procedural world map"
         onWheel={handleWheel}
@@ -1008,7 +1206,7 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
             );
           })}
 
-        {/* Layer 3: Roads (below labels) */}
+        {/* Layer 3: Roads (below icons and labels) */}
         {links.map((link, index) => {
           // Use repositioned coordinates for coastal cities
           const fromPos = nodePositions.get(link.from.id) || { x: link.from.x, y: link.from.y };
@@ -1058,20 +1256,64 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
             </g>
           );
         })}
-        
-        {/* Layer 4: Region Labels (on top of roads) - FIXED screen size like sprites */}
+
+        {/* Layer 4: ALL ICONS (below all labels) */}
         {(() => {
-          // When zoomed in (smaller viewBox), SVG units appear LARGER on screen
-          // So use SMALLER SVG values to keep constant screen size
           const zoomScale = viewBox.width / MAP_WIDTH;
           
-          // COUNTRY colors - Deep indigo/navy (authoritative, prominent)
+          return nodes.map((node) => {
+            const residentNames = node.residents.map((r) => r.name).join(", ");
+            const icon = node.iconData || "📍";
+            
+            // Use repositioned coordinates for coastal cities
+            const pos = nodePositions.get(node.id) || { x: node.x, y: node.y };
+            const nodeX = pos.x;
+            const nodeY = pos.y;
+            
+            // Base sizes
+            const baseIconSize = node.locationType === "country" || node.locationType === "province" ? 32 : 24;
+            const baseIconOffset = 8;
+            const iconSize = baseIconSize * zoomScale;
+            const iconOffset = baseIconOffset * zoomScale;
+            
+            return (
+              <g key={`icon-${node.id}`}>
+                <a
+                  href={`/archive/locations/${node.id}`}
+                  onMouseEnter={() => setSelectedNode(node.id)}
+                  onMouseLeave={() => setSelectedNode(null)}
+                  style={{ cursor: "pointer" }}
+                >
+                  <title>
+                    {residentNames
+                      ? `${node.name} — ${residentNames}`
+                      : `${node.name} — no residents yet`}
+                  </title>
+                  
+                  {/* Icon - constant screen size */}
+                  <text
+                    x={nodeX}
+                    y={nodeY + iconOffset}
+                    textAnchor="middle"
+                    fontSize={iconSize}
+                    style={{ pointerEvents: "none", userSelect: "none" }}
+                  >
+                    {icon}
+                  </text>
+                </a>
+              </g>
+            );
+          });
+        })()}
+        
+        {/* Layer 5: COUNTRY LABELS (on top of icons) */}
+        {(() => {
+          const zoomScale = viewBox.width / MAP_WIDTH;
           const countryColors = { bg: "#EEF2FF", border: "#4338CA", text: "#312E81" };
           
           return regions
             .filter((r) => r.node.locationType === "country")
             .map((region) => {
-              // Base sizes (at default zoom)
               const baseFontSize = 22;
               const baseCharWidth = 14;
               const basePadding = 18;
@@ -1079,7 +1321,6 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
               const baseStrokeWidth = 3;
               const baseBorderRadius = 6;
               
-              // Scale everything consistently
               const fontSize = baseFontSize * zoomScale;
               const charWidth = baseCharWidth * zoomScale;
               const textWidth = region.node.name.length * charWidth;
@@ -1087,15 +1328,17 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
               const boxHeight = baseBoxHeight * zoomScale;
               const strokeWidth = baseStrokeWidth * zoomScale;
               const borderRadius = baseBorderRadius * zoomScale;
-              const verticalOffset = 35 * zoomScale;
               const textVerticalAdjust = 8 * zoomScale;
               
-              const labelY = region.node.y - (getBounds(region.shape).maxY - region.node.y) + verticalOffset;
+              const centroid = getPolygonCentroid(region.shape);
+              const bounds = getBounds(region.shape);
+              const labelX = centroid.x;
+              const labelY = bounds.minY + (centroid.y - bounds.minY) * 0.4;
               
               return (
-                <g key={`label-${region.node.id}`}>
+                <g key={`country-label-${region.node.id}`}>
                   <rect
-                    x={region.node.x - textWidth / 2 - padding}
+                    x={labelX - textWidth / 2 - padding}
                     y={labelY - boxHeight / 2}
                     width={textWidth + padding * 2}
                     height={boxHeight}
@@ -1107,7 +1350,7 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
                     style={{ pointerEvents: "none" }}
                   />
                   <text
-                    x={region.node.x}
+                    x={labelX}
                     y={labelY + textVerticalAdjust}
                     textAnchor="middle"
                     fontSize={fontSize}
@@ -1128,17 +1371,14 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
             });
         })()}
         
+        {/* Layer 6: PROVINCE LABELS (on top of country labels) */}
         {(() => {
-          // FIXED screen size like sprites
           const zoomScale = viewBox.width / MAP_WIDTH;
-          
-          // PROVINCE colors - Teal/Cyan (official but softer than country)
           const provinceColors = { bg: "#ECFEFF", border: "#0891B2", text: "#155E75" };
           
           return regions
             .filter((r) => r.node.locationType === "province")
             .map((region) => {
-              // Base sizes (at default zoom)
               const baseFontSize = 11;
               const baseCharWidth = 8.5;
               const basePadding = 10;
@@ -1146,7 +1386,6 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
               const baseStrokeWidth = 1.5;
               const baseBorderRadius = 3;
               
-              // Scale everything consistently
               const fontSize = baseFontSize * zoomScale;
               const charWidth = baseCharWidth * zoomScale;
               const textWidth = region.node.name.length * charWidth;
@@ -1154,15 +1393,16 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
               const boxHeight = baseBoxHeight * zoomScale;
               const strokeWidth = baseStrokeWidth * zoomScale;
               const borderRadius = baseBorderRadius * zoomScale;
-              const verticalOffset = 25 * zoomScale;
               const textVerticalAdjust = 4 * zoomScale;
               
-              const labelY = region.node.y - (getBounds(region.shape).maxY - region.node.y) + verticalOffset;
+              const centroid = getPolygonCentroid(region.shape);
+              const labelX = centroid.x;
+              const labelY = centroid.y;
               
               return (
-                <g key={`label-${region.node.id}`}>
+                <g key={`province-label-${region.node.id}`}>
                   <rect
-                    x={region.node.x - textWidth / 2 - padding}
+                    x={labelX - textWidth / 2 - padding}
                     y={labelY - boxHeight / 2}
                     width={textWidth + padding * 2}
                     height={boxHeight}
@@ -1174,7 +1414,7 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
                     style={{ pointerEvents: "none" }}
                   />
                   <text
-                    x={region.node.x}
+                    x={labelX}
                     y={labelY + textVerticalAdjust}
                     textAnchor="middle"
                     fontSize={fontSize}
@@ -1195,26 +1435,27 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
             });
         })()}
 
-        {/* Layer 5: Location nodes and labels (topmost layer) - FIXED screen size like sprites */}
+        {/* Layer 7: CITY/TOWN LABELS (topmost layer - always on top of everything) */}
         {(() => {
-          // FIXED screen size like sprites
           const zoomScale = viewBox.width / MAP_WIDTH;
           
           return nodes.map((node) => {
-            const residentNames = node.residents.map((r) => r.name).join(", ");
+            // Skip country and province labels (handled in layers 5-6)
+            if (node.locationType === "country" || node.locationType === "province") {
+              return null;
+            }
+            
             const isSelected = selectedNode === node.id;
-            const icon = node.iconData || "📍";
             
             // Use repositioned coordinates for coastal cities
             const pos = nodePositions.get(node.id) || { x: node.x, y: node.y };
             const nodeX = pos.x;
             const nodeY = pos.y;
             
-            // COLOR COORDINATION SYSTEM:
-            // Country: Indigo (authoritative, prominent)
-            // Province: Teal/Cyan (official, regional)
-            // City: Amber/Orange (urban, bustling)
-            // Town: Rose/Pink (cozy, small settlement)
+            // Get label offset for collision avoidance
+            const labelOffset = labelOffsets.get(node.id) || { x: 0, y: 0 };
+            
+            // COLOR COORDINATION SYSTEM
             const labelColors = node.locationType === "city" 
               ? { bg: "#FFF7ED", border: "#EA580C", text: "#9A3412" } // Amber/Orange theme
               : node.locationType === "town"
@@ -1222,7 +1463,7 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
               : { bg: "#F9FAFB", border: "#6B7280", text: "#374151" }; // Default gray
             
             // Base sizes (at default zoom)
-            const baseIconSize = node.locationType === "country" || node.locationType === "province" ? 32 : 24;
+            const baseIconSize = 24;
             const baseNameSize = 11;
             const baseResidentSize = 9;
             const baseIconOffset = 8;
@@ -1249,75 +1490,64 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
             const textWidth = node.name.length * charWidth;
             const textVerticalAdjust = 4 * zoomScale;
             
+            // Apply label offset (scaled for zoom)
+            const labelX = nodeX + labelOffset.x * zoomScale;
+            const labelY = nodeY + labelOffset.y * zoomScale;
+            
             return (
-              <g key={node.id}>
-                <a
-                  href={`/archive/locations/${node.id}`}
-                  onMouseEnter={() => setSelectedNode(node.id)}
-                  onMouseLeave={() => setSelectedNode(null)}
-                  style={{ cursor: "pointer" }}
+              <g key={`label-${node.id}`}>
+                {/* Leader line from icon to label if offset is significant */}
+                {(Math.abs(labelOffset.x) > 5 || Math.abs(labelOffset.y) > 5) && (
+                  <line
+                    x1={nodeX}
+                    y1={nodeY + iconOffset + iconSize * 0.3}
+                    x2={labelX}
+                    y2={labelY + nameOffset - boxHeight / 2 - textVerticalAdjust}
+                    stroke={labelColors.border}
+                    strokeWidth={strokeWidth * 0.5}
+                    strokeDasharray={`${2 * zoomScale},${2 * zoomScale}`}
+                    opacity={0.5}
+                    style={{ pointerEvents: "none" }}
+                  />
+                )}
+                {/* Background box */}
+                <rect
+                  x={labelX - textWidth / 2 - padding}
+                  y={labelY + nameOffset - boxHeight / 2 - textVerticalAdjust}
+                  width={textWidth + padding * 2}
+                  height={boxHeight}
+                  fill={labelColors.bg}
+                  stroke={labelColors.border}
+                  strokeWidth={strokeWidth}
+                  rx={borderRadius}
+                  style={{ pointerEvents: "none" }}
+                />
+                {/* Text */}
+                <text
+                  x={labelX}
+                  y={labelY + nameOffset}
+                  textAnchor="middle"
+                  fontSize={nameSize}
+                  fontWeight={isSelected ? "700" : "600"}
+                  fill={labelColors.text}
+                  style={{ pointerEvents: "none", userSelect: "none" }}
                 >
-                  <title>
-                    {residentNames
-                      ? `${node.name} — ${residentNames}`
-                      : `${node.name} — no residents yet`}
-                  </title>
-                  
-                  {/* Icon - constant screen size */}
+                  {node.name}
+                </text>
+                
+                {/* Resident count */}
+                {node.residents.length > 0 && (
                   <text
-                    x={nodeX}
-                    y={nodeY + iconOffset}
+                    x={labelX}
+                    y={labelY + residentOffset}
                     textAnchor="middle"
-                    fontSize={iconSize}
+                    fontSize={residentSize}
+                    fill="rgba(100, 116, 139, 0.8)"
                     style={{ pointerEvents: "none", userSelect: "none" }}
                   >
-                    {icon}
+                    {node.residents.length} resident{node.residents.length === 1 ? "" : "s"}
                   </text>
-                  
-                  {/* Location name with colored border - for cities and towns */}
-                  {node.locationType !== "country" && node.locationType !== "province" && (
-                    <g>
-                      {/* Background box */}
-                      <rect
-                        x={nodeX - textWidth / 2 - padding}
-                        y={nodeY + nameOffset - boxHeight / 2 - textVerticalAdjust}
-                        width={textWidth + padding * 2}
-                        height={boxHeight}
-                        fill={labelColors.bg}
-                        stroke={labelColors.border}
-                        strokeWidth={strokeWidth}
-                        rx={borderRadius}
-                        style={{ pointerEvents: "none" }}
-                      />
-                      {/* Text */}
-                      <text
-                        x={nodeX}
-                        y={nodeY + nameOffset}
-                        textAnchor="middle"
-                        fontSize={nameSize}
-                        fontWeight={isSelected ? "700" : "600"}
-                        fill={labelColors.text}
-                        style={{ pointerEvents: "none", userSelect: "none" }}
-                      >
-                        {node.name}
-                      </text>
-                    </g>
-                  )}
-                  
-                  {/* Resident count - constant screen size */}
-                  {node.residents.length > 0 && node.locationType !== "country" && node.locationType !== "province" && (
-                    <text
-                      x={nodeX}
-                      y={nodeY + residentOffset}
-                      textAnchor="middle"
-                      fontSize={residentSize}
-                      fill="rgba(100, 116, 139, 0.8)"
-                      style={{ pointerEvents: "none", userSelect: "none" }}
-                    >
-                      {node.residents.length} resident{node.residents.length === 1 ? "" : "s"}
-                    </text>
-                  )}
-                </a>
+                )}
               </g>
             );
           });
