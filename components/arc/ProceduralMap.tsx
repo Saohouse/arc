@@ -1294,7 +1294,7 @@ export function ProceduralMap({
             // Check if sibling has cities (to allow some flexibility)
             const siblingChildren = nodes.filter(n => 
               n.parentLocationId === sibling.id && 
-              (n.type === 'city' || n.type === 'town')
+              (n.locationType === 'city' || n.locationType === 'town')
             );
             const siblingHasCities = siblingChildren.length > 0;
             
@@ -1689,8 +1689,8 @@ export function ProceduralMap({
       if (draggedNode?.type === 'province') {
         // PROVINCE: Check collision with other provinces' cities
         const otherCities = nodes.filter(n => 
-          (n.type === 'city' || n.type === 'town') && 
-          n.parentId !== draggedLocation
+          (n.locationType === 'city' || n.locationType === 'town') && 
+          n.parentLocationId !== draggedLocation
         );
         
         const collisionAdjustments: Record<string, { x: number; y: number }> = {};
@@ -1718,10 +1718,10 @@ export function ProceduralMap({
           [draggedLocation]: newPos,
           ...collisionAdjustments,
         }));
-      } else if (draggedNode?.type === 'city' || draggedNode?.type === 'town') {
+      } else if (draggedNode?.locationType === 'city' || draggedNode?.locationType === 'town') {
         // CITY/TOWN: Check if position is within or very close to parent country's land boundaries
-        const parentProvince = nodes.find(n => n.id === draggedNode.parentId);
-        const parentCountry = parentProvince ? nodes.find(n => n.id === parentProvince.parentId) : null;
+        const parentProvince = nodes.find(n => n.id === draggedNode.parentLocationId);
+        const parentCountry = parentProvince ? nodes.find(n => n.id === parentProvince.parentLocationId) : null;
         
         // Get the country's boundary shape
         const countryRegion = regions.find(r => r.node.id === parentCountry?.id);
