@@ -67,6 +67,51 @@ function isCoastalLocation(summary: string | null, overview: string | null, tags
   return coastalKeywords.some(keyword => text.includes(keyword));
 }
 
+// Shape generation parameters (adjustable in dev mode)
+type ShapeParams = {
+  // Country params
+  countryAngularPercent: number;      // % of angular sections (0-100)
+  countryAngularRadiusMin: number;    // Min radius variation for angular (0.5-1.0)
+  countryAngularRadiusMax: number;    // Max radius variation for angular (1.0-1.5)
+  countryOrganicRadiusMin: number;    // Min radius variation for organic (0.5-1.0)
+  countryOrganicRadiusMax: number;    // Max radius variation for organic (1.0-1.5)
+  countryAngleJitter: number;         // Angle jitter for organic (0-0.5)
+  countrySides: number;               // Base number of sides (10-30)
+  // Province params
+  provinceAngularPercent: number;
+  provinceAngularRadiusMin: number;
+  provinceAngularRadiusMax: number;
+  provinceOrganicRadiusMin: number;
+  provinceOrganicRadiusMax: number;
+  provinceAngleJitter: number;
+  provinceSides: number;
+  // Path rendering
+  pathStraightPercent: number;        // % of path segments that are straight lines
+  // Road params
+  roadCurviness: number;              // How much roads curve (0-1)
+  roadSegments: number;               // Number of curve segments in roads (2-8)
+};
+
+const defaultParams: ShapeParams = {
+  countryAngularPercent: 50,
+  countryAngularRadiusMin: 0.88,
+  countryAngularRadiusMax: 1.12,
+  countryOrganicRadiusMin: 0.7,
+  countryOrganicRadiusMax: 1.3,
+  countryAngleJitter: 0.3,
+  countrySides: 18,
+  provinceAngularPercent: 40,
+  provinceAngularRadiusMin: 0.85,
+  provinceAngularRadiusMax: 1.15,
+  provinceOrganicRadiusMin: 0.8,
+  provinceOrganicRadiusMax: 1.2,
+  provinceAngleJitter: 0.35,
+  provinceSides: 12,
+  pathStraightPercent: 40,
+  roadCurviness: 0.35,
+  roadSegments: 4,
+};
+
 export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [viewBox, setViewBox] = useState({
@@ -81,6 +126,10 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
   const [regions, setRegions] = useState<Region[]>([]);
   const [mapSeed, setMapSeed] = useState(0); // For regeneration
   const [nodePositions, setNodePositions] = useState<Map<string, { x: number; y: number }>>(new Map());
+  
+  // Dev mode state
+  const [devMode, setDevMode] = useState(false);
+  const [shapeParams, setShapeParams] = useState<ShapeParams>(defaultParams);
 
   // Helper: Find where a ray from center intersects the polygon boundary
   const findBoundaryPoint = (
@@ -130,7 +179,7 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
     return closestPoint;
   };
 
-  // Generate regions on mount and when seed changes
+  // Generate regions on mount and when seed/params change
   useEffect(() => {
     const generatedRegions: Region[] = [];
     
@@ -157,24 +206,52 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
         });
       }
       
-      // Generate realistic jagged country borders (like real countries!)
-      const numSides = 24 + Math.floor(seededRandom(seed) * 12); // 24-36 sides for detailed jagged edges
+      // Generate realistic country borders - mix of angular segments and curves (like UN map)
+      // Use shapeParams for adjustable values
+      const numSides = shapeParams.countrySides + Math.floor(seededRandom(seed) * 8);
       const countryPoints: Point[] = [];
+      const angularThreshold = Math.floor(shapeParams.countryAngularPercent / 10); // Convert to 0-10 scale
       
       for (let i = 0; i < numSides; i++) {
         const baseAngle = (i / numSides) * Math.PI * 2;
-        // Add angular jitter for jagged coastline effect
-        const angleJitter = (seededRandom(seed + i * 73) - 0.5) * 0.25;
-        const angle = baseAngle + angleJitter;
         
-        // Radius variation for realistic irregular borders
-        const radiusVariation = 0.75 + seededRandom(seed + i * 137) * 0.5; // 0.75 to 1.25
-        const radius = maxDistance * radiusVariation;
+        // Decide if this section should be angular (straight) or organic (curved)
+        const sectionSeed = seed + i * 73;
+        const isAngularSection = (sectionSeed % 10) < angularThreshold;
         
-        countryPoints.push({
-          x: country.x + Math.cos(angle) * radius,
-          y: country.y + Math.sin(angle) * radius,
-        });
+        if (isAngularSection) {
+          // Angular section: add 2-3 points in nearly straight line with slight offset
+          const numSubPoints = 2 + Math.floor(seededRandom(sectionSeed) * 2);
+          const sectionWidth = (Math.PI * 2 / numSides);
+          
+          for (let j = 0; j < numSubPoints; j++) {
+            const subAngle = baseAngle + (j / numSubPoints) * sectionWidth;
+            // Less radius variation for straighter edges (use params)
+            const radiusRange = shapeParams.countryAngularRadiusMax - shapeParams.countryAngularRadiusMin;
+            const radiusVariation = shapeParams.countryAngularRadiusMin + seededRandom(sectionSeed + j * 41) * radiusRange;
+            const radius = maxDistance * radiusVariation;
+            
+            // Slight perpendicular offset for natural straight lines
+            const perpOffset = (seededRandom(sectionSeed + j * 97) - 0.5) * 15;
+            
+            countryPoints.push({
+              x: country.x + Math.cos(subAngle) * radius + Math.cos(subAngle + Math.PI/2) * perpOffset,
+              y: country.y + Math.sin(subAngle) * radius + Math.sin(subAngle + Math.PI/2) * perpOffset,
+            });
+          }
+        } else {
+          // Organic section: single point with more variation for curves (use params)
+          const angleJitter = (seededRandom(sectionSeed + 200) - 0.5) * shapeParams.countryAngleJitter;
+          const angle = baseAngle + angleJitter;
+          const radiusRange = shapeParams.countryOrganicRadiusMax - shapeParams.countryOrganicRadiusMin;
+          const radiusVariation = shapeParams.countryOrganicRadiusMin + seededRandom(sectionSeed + 137) * radiusRange;
+          const radius = maxDistance * radiusVariation;
+          
+          countryPoints.push({
+            x: country.x + Math.cos(angle) * radius,
+            y: country.y + Math.sin(angle) * radius,
+          });
+        }
       }
       
       const shape = countryPoints;
@@ -253,16 +330,14 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
         : null;
       
       // Generate points around the province, but limit by neighbors and country boundary
-      const numSides = 16 + Math.floor(seededRandom(seed) * 8); // 16-24 sides for jagged edges
+      // Province generation with angular/organic mix (like country borders)
+      // Use shapeParams for adjustable values
+      const numSections = shapeParams.provinceSides + Math.floor(seededRandom(seed) * 6);
       const points: Point[] = [];
+      const provAngularThreshold = Math.floor(shapeParams.provinceAngularPercent / 10);
       
-      for (let i = 0; i < numSides; i++) {
-        const baseAngle = (i / numSides) * Math.PI * 2;
-        // Add angular jitter for jagged edges
-        const angleJitter = (seededRandom(seed + i * 50) - 0.5) * 0.3;
-        const angle = baseAngle + angleJitter;
-        
-        // Start with a large radius
+      // Helper to calculate limited radius for a given angle
+      const calculateRadius = (angle: number, seedOffset: number, isAngular: boolean) => {
         let maxRadius = 200;
         
         // Limit by distance to siblings (Voronoi-like)
@@ -270,35 +345,28 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
           const dx = sibling.x - province.x;
           const dy = sibling.y - province.y;
           const distToSibling = Math.sqrt(dx * dx + dy * dy);
-          
-          // Calculate angle to sibling
           const angleToSibling = Math.atan2(dy, dx);
-          
-          // If this point direction is toward the sibling, limit the radius
           const angleDiff = Math.abs(angle - angleToSibling);
           const normalizedDiff = Math.min(angleDiff, Math.PI * 2 - angleDiff);
           
           if (normalizedDiff < Math.PI / 2) {
-            // This direction faces toward the sibling
-            // Limit to ~45% of the distance (so provinces meet in the middle with gap)
-            const factor = 0.45 + (normalizedDiff / Math.PI) * 0.3; // 0.45 to 0.6
-            const limitedRadius = distToSibling * factor;
-            maxRadius = Math.min(maxRadius, limitedRadius);
+            const factor = 0.45 + (normalizedDiff / Math.PI) * 0.3;
+            maxRadius = Math.min(maxRadius, distToSibling * factor);
           }
         });
         
-        // Apply jagged variation FIRST (before boundary limiting)
+        // Apply radius variation based on section type (use params)
         const minRadius = 50;
-        const radiusVariation = 0.8 + seededRandom(seed + i * 100) * 0.4; // 0.8 to 1.2
+        const radiusMin = isAngular ? shapeParams.provinceAngularRadiusMin : shapeParams.provinceOrganicRadiusMin;
+        const radiusMax = isAngular ? shapeParams.provinceAngularRadiusMax : shapeParams.provinceOrganicRadiusMax;
+        const radiusVariation = radiusMin + seededRandom(seed + seedOffset) * (radiusMax - radiusMin);
         let finalRadius = Math.max(minRadius, maxRadius * radiusVariation);
         
-        // THEN limit by country boundary (this is the FINAL limit - never exceed!)
+        // Limit by country boundary
         if (parentCountry) {
           const boundaryPoint = findBoundaryPoint(
-            province.x,
-            province.y,
-            Math.cos(angle),
-            Math.sin(angle),
+            province.x, province.y,
+            Math.cos(angle), Math.sin(angle),
             parentCountry.shape
           );
           if (boundaryPoint) {
@@ -306,16 +374,46 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
               Math.pow(boundaryPoint.x - province.x, 2) + 
               Math.pow(boundaryPoint.y - province.y, 2)
             );
-            // HARD LIMIT: Stay 15% inside country boundary (never exceed!)
-            const maxAllowed = distToBoundary * 0.85;
-            finalRadius = Math.min(finalRadius, maxAllowed);
+            finalRadius = Math.min(finalRadius, distToBoundary * 0.85);
           }
         }
         
-        points.push({
-          x: province.x + Math.cos(angle) * finalRadius,
-          y: province.y + Math.sin(angle) * finalRadius,
-        });
+        return finalRadius;
+      };
+      
+      for (let i = 0; i < numSections; i++) {
+        const baseAngle = (i / numSections) * Math.PI * 2;
+        const sectionSeed = seed + i * 73;
+        const isAngularSection = (sectionSeed % 10) < provAngularThreshold;
+        
+        if (isAngularSection) {
+          // Angular section: 2-3 points forming a relatively straight edge
+          const numSubPoints = 2 + Math.floor(seededRandom(sectionSeed) * 2);
+          const sectionWidth = (Math.PI * 2 / numSections);
+          
+          for (let j = 0; j < numSubPoints; j++) {
+            const subAngle = baseAngle + (j / numSubPoints) * sectionWidth;
+            const finalRadius = calculateRadius(subAngle, i * 100 + j * 41, true);
+            
+            // Small perpendicular offset for natural-looking straight lines
+            const perpOffset = (seededRandom(sectionSeed + j * 97) - 0.5) * 8;
+            
+            points.push({
+              x: province.x + Math.cos(subAngle) * finalRadius + Math.cos(subAngle + Math.PI/2) * perpOffset,
+              y: province.y + Math.sin(subAngle) * finalRadius + Math.sin(subAngle + Math.PI/2) * perpOffset,
+            });
+          }
+        } else {
+          // Organic section: single point for smooth curve (use params)
+          const angleJitter = (seededRandom(sectionSeed + 200) - 0.5) * shapeParams.provinceAngleJitter;
+          const angle = baseAngle + angleJitter;
+          const finalRadius = calculateRadius(angle, i * 100, false);
+          
+          points.push({
+            x: province.x + Math.cos(angle) * finalRadius,
+            y: province.y + Math.sin(angle) * finalRadius,
+          });
+        }
       }
       
       provinceShapes.set(province.id, points);
@@ -324,7 +422,7 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
     
     setRegions(generatedRegions);
     setNodePositions(repositionedNodes);
-  }, [nodes, mapSeed]); // Regenerate when mapSeed changes
+  }, [nodes, mapSeed, shapeParams]); // Regenerate when mapSeed or params change
 
   const handleWheel = (e: WheelEvent<SVGSVGElement>) => {
     e.preventDefault();
@@ -475,7 +573,267 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
             <path d="M4 8 L 8 4 L 12 8 M8 4 L 8 12" />
           </svg>
         </button>
+        <button
+          onClick={() => setDevMode(prev => !prev)}
+          className={`rounded p-1.5 shadow-sm border ${devMode ? 'bg-amber-500 text-white border-amber-600' : 'bg-white/90 hover:bg-gray-100 border-gray-200'}`}
+          title="Toggle dev mode"
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="8" cy="8" r="2" />
+            <path d="M8 1 L8 3 M8 13 L8 15 M1 8 L3 8 M13 8 L15 8" />
+            <path d="M3 3 L4.5 4.5 M11.5 11.5 L13 13 M3 13 L4.5 11.5 M11.5 4.5 L13 3" />
+          </svg>
+        </button>
       </div>
+      
+      {/* Dev Mode Panel */}
+      {devMode && (
+        <div className="absolute left-2 top-2 z-10 bg-white/95 rounded-lg shadow-lg border border-gray-200 p-3 max-h-[580px] overflow-y-auto w-64">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-sm text-gray-700">Shape Parameters</h3>
+            <button 
+              onClick={() => setShapeParams(defaultParams)}
+              className="text-xs text-blue-600 hover:text-blue-800"
+            >
+              Reset
+            </button>
+          </div>
+          
+          {/* Country Settings */}
+          <div className="mb-4">
+            <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Country</h4>
+            
+            <label className="block text-xs mb-1">
+              <span className="text-gray-600">Sides: {shapeParams.countrySides}</span>
+              <input
+                type="range"
+                min="8"
+                max="40"
+                value={shapeParams.countrySides}
+                onChange={(e) => setShapeParams(p => ({ ...p, countrySides: Number(e.target.value) }))}
+                className="w-full h-1.5 accent-indigo-600"
+              />
+            </label>
+            
+            <label className="block text-xs mb-1">
+              <span className="text-gray-600">Angular %: {shapeParams.countryAngularPercent}</span>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="10"
+                value={shapeParams.countryAngularPercent}
+                onChange={(e) => setShapeParams(p => ({ ...p, countryAngularPercent: Number(e.target.value) }))}
+                className="w-full h-1.5 accent-indigo-600"
+              />
+            </label>
+            
+            <label className="block text-xs mb-1">
+              <span className="text-gray-600">Angular Radius: {shapeParams.countryAngularRadiusMin.toFixed(2)} - {shapeParams.countryAngularRadiusMax.toFixed(2)}</span>
+              <div className="flex gap-1">
+                <input
+                  type="range"
+                  min="0.5"
+                  max="1.0"
+                  step="0.02"
+                  value={shapeParams.countryAngularRadiusMin}
+                  onChange={(e) => setShapeParams(p => ({ ...p, countryAngularRadiusMin: Number(e.target.value) }))}
+                  className="w-1/2 h-1.5 accent-indigo-600"
+                />
+                <input
+                  type="range"
+                  min="1.0"
+                  max="1.5"
+                  step="0.02"
+                  value={shapeParams.countryAngularRadiusMax}
+                  onChange={(e) => setShapeParams(p => ({ ...p, countryAngularRadiusMax: Number(e.target.value) }))}
+                  className="w-1/2 h-1.5 accent-indigo-600"
+                />
+              </div>
+            </label>
+            
+            <label className="block text-xs mb-1">
+              <span className="text-gray-600">Organic Radius: {shapeParams.countryOrganicRadiusMin.toFixed(2)} - {shapeParams.countryOrganicRadiusMax.toFixed(2)}</span>
+              <div className="flex gap-1">
+                <input
+                  type="range"
+                  min="0.4"
+                  max="1.0"
+                  step="0.02"
+                  value={shapeParams.countryOrganicRadiusMin}
+                  onChange={(e) => setShapeParams(p => ({ ...p, countryOrganicRadiusMin: Number(e.target.value) }))}
+                  className="w-1/2 h-1.5 accent-indigo-600"
+                />
+                <input
+                  type="range"
+                  min="1.0"
+                  max="1.6"
+                  step="0.02"
+                  value={shapeParams.countryOrganicRadiusMax}
+                  onChange={(e) => setShapeParams(p => ({ ...p, countryOrganicRadiusMax: Number(e.target.value) }))}
+                  className="w-1/2 h-1.5 accent-indigo-600"
+                />
+              </div>
+            </label>
+            
+            <label className="block text-xs mb-1">
+              <span className="text-gray-600">Angle Jitter: {shapeParams.countryAngleJitter.toFixed(2)}</span>
+              <input
+                type="range"
+                min="0"
+                max="0.6"
+                step="0.05"
+                value={shapeParams.countryAngleJitter}
+                onChange={(e) => setShapeParams(p => ({ ...p, countryAngleJitter: Number(e.target.value) }))}
+                className="w-full h-1.5 accent-indigo-600"
+              />
+            </label>
+          </div>
+          
+          {/* Province Settings */}
+          <div className="mb-4">
+            <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Province</h4>
+            
+            <label className="block text-xs mb-1">
+              <span className="text-gray-600">Sides: {shapeParams.provinceSides}</span>
+              <input
+                type="range"
+                min="6"
+                max="30"
+                value={shapeParams.provinceSides}
+                onChange={(e) => setShapeParams(p => ({ ...p, provinceSides: Number(e.target.value) }))}
+                className="w-full h-1.5 accent-teal-600"
+              />
+            </label>
+            
+            <label className="block text-xs mb-1">
+              <span className="text-gray-600">Angular %: {shapeParams.provinceAngularPercent}</span>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="10"
+                value={shapeParams.provinceAngularPercent}
+                onChange={(e) => setShapeParams(p => ({ ...p, provinceAngularPercent: Number(e.target.value) }))}
+                className="w-full h-1.5 accent-teal-600"
+              />
+            </label>
+            
+            <label className="block text-xs mb-1">
+              <span className="text-gray-600">Angular Radius: {shapeParams.provinceAngularRadiusMin.toFixed(2)} - {shapeParams.provinceAngularRadiusMax.toFixed(2)}</span>
+              <div className="flex gap-1">
+                <input
+                  type="range"
+                  min="0.5"
+                  max="1.0"
+                  step="0.02"
+                  value={shapeParams.provinceAngularRadiusMin}
+                  onChange={(e) => setShapeParams(p => ({ ...p, provinceAngularRadiusMin: Number(e.target.value) }))}
+                  className="w-1/2 h-1.5 accent-teal-600"
+                />
+                <input
+                  type="range"
+                  min="1.0"
+                  max="1.5"
+                  step="0.02"
+                  value={shapeParams.provinceAngularRadiusMax}
+                  onChange={(e) => setShapeParams(p => ({ ...p, provinceAngularRadiusMax: Number(e.target.value) }))}
+                  className="w-1/2 h-1.5 accent-teal-600"
+                />
+              </div>
+            </label>
+            
+            <label className="block text-xs mb-1">
+              <span className="text-gray-600">Organic Radius: {shapeParams.provinceOrganicRadiusMin.toFixed(2)} - {shapeParams.provinceOrganicRadiusMax.toFixed(2)}</span>
+              <div className="flex gap-1">
+                <input
+                  type="range"
+                  min="0.5"
+                  max="1.0"
+                  step="0.02"
+                  value={shapeParams.provinceOrganicRadiusMin}
+                  onChange={(e) => setShapeParams(p => ({ ...p, provinceOrganicRadiusMin: Number(e.target.value) }))}
+                  className="w-1/2 h-1.5 accent-teal-600"
+                />
+                <input
+                  type="range"
+                  min="1.0"
+                  max="1.5"
+                  step="0.02"
+                  value={shapeParams.provinceOrganicRadiusMax}
+                  onChange={(e) => setShapeParams(p => ({ ...p, provinceOrganicRadiusMax: Number(e.target.value) }))}
+                  className="w-1/2 h-1.5 accent-teal-600"
+                />
+              </div>
+            </label>
+            
+            <label className="block text-xs mb-1">
+              <span className="text-gray-600">Angle Jitter: {shapeParams.provinceAngleJitter.toFixed(2)}</span>
+              <input
+                type="range"
+                min="0"
+                max="0.6"
+                step="0.05"
+                value={shapeParams.provinceAngleJitter}
+                onChange={(e) => setShapeParams(p => ({ ...p, provinceAngleJitter: Number(e.target.value) }))}
+                className="w-full h-1.5 accent-teal-600"
+              />
+            </label>
+          </div>
+          
+          {/* Path Rendering */}
+          <div className="mb-4">
+            <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Border Lines</h4>
+            
+            <label className="block text-xs mb-1">
+              <span className="text-gray-600">Straight Lines %: {shapeParams.pathStraightPercent}</span>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="10"
+                value={shapeParams.pathStraightPercent}
+                onChange={(e) => setShapeParams(p => ({ ...p, pathStraightPercent: Number(e.target.value) }))}
+                className="w-full h-1.5 accent-gray-600"
+              />
+            </label>
+          </div>
+          
+          {/* Road Settings */}
+          <div className="mb-2">
+            <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Roads</h4>
+            
+            <label className="block text-xs mb-1">
+              <span className="text-gray-600">Curviness: {shapeParams.roadCurviness.toFixed(2)}</span>
+              <input
+                type="range"
+                min="0"
+                max="0.8"
+                step="0.05"
+                value={shapeParams.roadCurviness}
+                onChange={(e) => setShapeParams(p => ({ ...p, roadCurviness: Number(e.target.value) }))}
+                className="w-full h-1.5 accent-amber-600"
+              />
+            </label>
+            
+            <label className="block text-xs mb-1">
+              <span className="text-gray-600">Segments (bends): {shapeParams.roadSegments}</span>
+              <input
+                type="range"
+                min="2"
+                max="8"
+                step="1"
+                value={shapeParams.roadSegments}
+                onChange={(e) => setShapeParams(p => ({ ...p, roadSegments: Number(e.target.value) }))}
+                className="w-full h-1.5 accent-amber-600"
+              />
+            </label>
+          </div>
+          
+          <div className="text-[10px] text-gray-400 mt-2 pt-2 border-t">
+            Tip: Higher road curviness + more segments = winding organic roads.</div>
+        </div>
+      )}
 
       <svg
         ref={svgRef}
@@ -610,11 +968,12 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
           .map((region) => {
             const colors = getLocationColors(region.node.locationType);
             const isSelected = selectedNode === region.node.id;
+            const shapeSeed = hashString(region.node.id) + mapSeed;
             
             return (
               <g key={`region-${region.node.id}`}>
                 <path
-                  d={pointsToPath(region.shape)}
+                  d={pointsToPath(region.shape, shapeSeed, shapeParams.pathStraightPercent)}
                   fill={colors.fill}
                   stroke={colors.stroke}
                   strokeWidth={isSelected ? colors.strokeWidth + 1 : colors.strokeWidth}
@@ -632,11 +991,12 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
           .map((region) => {
             const colors = getLocationColors(region.node.locationType);
             const isSelected = selectedNode === region.node.id;
+            const shapeSeed = hashString(region.node.id) + mapSeed;
             
             return (
               <g key={`region-${region.node.id}`}>
                 <path
-                  d={pointsToPath(region.shape)}
+                  d={pointsToPath(region.shape, shapeSeed, shapeParams.pathStraightPercent)}
                   fill={colors.fill}
                   stroke={colors.stroke}
                   strokeWidth={isSelected ? colors.strokeWidth + 1 : colors.strokeWidth}
@@ -660,7 +1020,8 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
             fromPos,
             toPos,
             seed,
-            0.08 // Reduced curviness for stability
+            shapeParams.roadCurviness,
+            shapeParams.roadSegments
           );
           
           return (
@@ -698,126 +1059,145 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
           );
         })}
         
-        {/* Layer 4: Region Labels (on top of roads) - scales with zoom */}
+        {/* Layer 4: Region Labels (on top of roads) - FIXED screen size like sprites */}
         {(() => {
+          // When zoomed in (smaller viewBox), SVG units appear LARGER on screen
+          // So use SMALLER SVG values to keep constant screen size
           const zoomScale = viewBox.width / MAP_WIDTH;
+          
+          // COUNTRY colors - Deep indigo/navy (authoritative, prominent)
+          const countryColors = { bg: "#EEF2FF", border: "#4338CA", text: "#312E81" };
           
           return regions
             .filter((r) => r.node.locationType === "country")
             .map((region) => {
-              const colors = getLocationColors(region.node.locationType);
+              // Base sizes (at default zoom)
+              const baseFontSize = 22;
+              const baseCharWidth = 14;
+              const basePadding = 18;
+              const baseBoxHeight = 34;
+              const baseStrokeWidth = 3;
+              const baseBorderRadius = 6;
               
-              // Scale all dimensions by zoom
-              const fontSize = 22 * zoomScale;
-              const textWidth = region.node.name.length * 14 * zoomScale;
-              const padding = 18 * zoomScale;
-              const boxHeight = 34 * zoomScale;
-              const strokeWidth = 3.5 * zoomScale;
-              const borderRadius = 6 * zoomScale;
-              const labelYOffset = 35 * zoomScale;
-              const textYOffset = 20 * zoomScale;
+              // Scale everything consistently
+              const fontSize = baseFontSize * zoomScale;
+              const charWidth = baseCharWidth * zoomScale;
+              const textWidth = region.node.name.length * charWidth;
+              const padding = basePadding * zoomScale;
+              const boxHeight = baseBoxHeight * zoomScale;
+              const strokeWidth = baseStrokeWidth * zoomScale;
+              const borderRadius = baseBorderRadius * zoomScale;
+              const verticalOffset = 35 * zoomScale;
+              const textVerticalAdjust = 8 * zoomScale;
               
-              const labelY = region.node.y - (getBounds(region.shape).maxY - region.node.y) + labelYOffset;
+              const labelY = region.node.y - (getBounds(region.shape).maxY - region.node.y) + verticalOffset;
               
               return (
                 <g key={`label-${region.node.id}`}>
-                  <g>
-                    <rect
-                      x={region.node.x - textWidth / 2 - padding}
-                      y={labelY - textYOffset}
-                      width={textWidth + padding * 2}
-                      height={boxHeight}
-                      fill="white"
-                      stroke={colors.stroke}
-                      strokeWidth={strokeWidth}
-                      rx={borderRadius}
-                      filter="url(#label-shadow)"
-                      style={{ pointerEvents: "none" }}
-                    />
-                    <text
-                      x={region.node.x}
-                      y={labelY}
-                      textAnchor="middle"
-                      fontSize={fontSize}
-                      fontWeight="900"
-                      fill={colors.stroke}
-                      style={{ 
-                        pointerEvents: "none", 
-                        userSelect: "none",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.1em",
-                        fontFamily: "system-ui, -apple-system, sans-serif"
-                      }}
-                    >
-                      {region.node.name}
-                    </text>
-                  </g>
+                  <rect
+                    x={region.node.x - textWidth / 2 - padding}
+                    y={labelY - boxHeight / 2}
+                    width={textWidth + padding * 2}
+                    height={boxHeight}
+                    fill={countryColors.bg}
+                    stroke={countryColors.border}
+                    strokeWidth={strokeWidth}
+                    rx={borderRadius}
+                    filter="url(#label-shadow)"
+                    style={{ pointerEvents: "none" }}
+                  />
+                  <text
+                    x={region.node.x}
+                    y={labelY + textVerticalAdjust}
+                    textAnchor="middle"
+                    fontSize={fontSize}
+                    fontWeight="900"
+                    fill={countryColors.text}
+                    style={{ 
+                      pointerEvents: "none", 
+                      userSelect: "none",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.1em",
+                      fontFamily: "system-ui, -apple-system, sans-serif"
+                    }}
+                  >
+                    {region.node.name}
+                  </text>
                 </g>
               );
             });
         })()}
         
         {(() => {
+          // FIXED screen size like sprites
           const zoomScale = viewBox.width / MAP_WIDTH;
+          
+          // PROVINCE colors - Teal/Cyan (official but softer than country)
+          const provinceColors = { bg: "#ECFEFF", border: "#0891B2", text: "#155E75" };
           
           return regions
             .filter((r) => r.node.locationType === "province")
             .map((region) => {
-              const colors = getLocationColors(region.node.locationType);
+              // Base sizes (at default zoom)
+              const baseFontSize = 11;
+              const baseCharWidth = 8.5;
+              const basePadding = 10;
+              const baseBoxHeight = 18;
+              const baseStrokeWidth = 1.5;
+              const baseBorderRadius = 3;
               
-              // Scale all dimensions by zoom
-              const fontSize = 12 * zoomScale;
-              const textWidth = region.node.name.length * 7.5 * zoomScale;
-              const padding = 8 * zoomScale;
-              const boxHeight = 18 * zoomScale;
-              const strokeWidth = 2 * zoomScale;
-              const borderRadius = 3 * zoomScale;
-              const labelYOffset = 25 * zoomScale;
-              const textYOffset = 12 * zoomScale;
+              // Scale everything consistently
+              const fontSize = baseFontSize * zoomScale;
+              const charWidth = baseCharWidth * zoomScale;
+              const textWidth = region.node.name.length * charWidth;
+              const padding = basePadding * zoomScale;
+              const boxHeight = baseBoxHeight * zoomScale;
+              const strokeWidth = baseStrokeWidth * zoomScale;
+              const borderRadius = baseBorderRadius * zoomScale;
+              const verticalOffset = 25 * zoomScale;
+              const textVerticalAdjust = 4 * zoomScale;
               
-              const labelY = region.node.y - (getBounds(region.shape).maxY - region.node.y) + labelYOffset;
+              const labelY = region.node.y - (getBounds(region.shape).maxY - region.node.y) + verticalOffset;
               
               return (
                 <g key={`label-${region.node.id}`}>
-                  <g>
-                    <rect
-                      x={region.node.x - textWidth / 2 - padding}
-                      y={labelY - textYOffset}
-                      width={textWidth + padding * 2}
-                      height={boxHeight}
-                      fill="white"
-                      stroke={colors.stroke}
-                      strokeWidth={strokeWidth}
-                      rx={borderRadius}
-                      filter="url(#label-shadow)"
-                      style={{ pointerEvents: "none" }}
-                    />
-                    <text
-                      x={region.node.x}
-                      y={labelY}
-                      textAnchor="middle"
-                      fontSize={fontSize}
-                      fontWeight="700"
-                      fill={colors.stroke}
-                      style={{ 
-                        pointerEvents: "none", 
-                        userSelect: "none",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.08em",
-                        fontFamily: "system-ui, -apple-system, sans-serif"
-                      }}
-                    >
-                      {region.node.name}
-                    </text>
-                  </g>
+                  <rect
+                    x={region.node.x - textWidth / 2 - padding}
+                    y={labelY - boxHeight / 2}
+                    width={textWidth + padding * 2}
+                    height={boxHeight}
+                    fill={provinceColors.bg}
+                    stroke={provinceColors.border}
+                    strokeWidth={strokeWidth}
+                    rx={borderRadius}
+                    filter="url(#label-shadow)"
+                    style={{ pointerEvents: "none" }}
+                  />
+                  <text
+                    x={region.node.x}
+                    y={labelY + textVerticalAdjust}
+                    textAnchor="middle"
+                    fontSize={fontSize}
+                    fontWeight="700"
+                    fill={provinceColors.text}
+                    style={{ 
+                      pointerEvents: "none", 
+                      userSelect: "none",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      fontFamily: "system-ui, -apple-system, sans-serif"
+                    }}
+                  >
+                    {region.node.name}
+                  </text>
                 </g>
               );
             });
         })()}
 
-        {/* Layer 5: Location nodes and labels (topmost layer) */}
+        {/* Layer 5: Location nodes and labels (topmost layer) - FIXED screen size like sprites */}
         {(() => {
-          // Calculate zoom scale factor - text scales to stay readable
+          // FIXED screen size like sprites
           const zoomScale = viewBox.width / MAP_WIDTH;
           
           return nodes.map((node) => {
@@ -830,22 +1210,44 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
             const nodeX = pos.x;
             const nodeY = pos.y;
             
-            // Determine node size based on type
-            // Countries and provinces are subtle (region is main visual)
-            // Cities and towns are prominent (node is main visual)
-            let nodeRadius = 32;
-            if (node.locationType === "country") nodeRadius = 24;
-            else if (node.locationType === "province") nodeRadius = 20;
-            else if (node.locationType === "city") nodeRadius = 36;
-            else if (node.locationType === "town") nodeRadius = 28;
+            // COLOR COORDINATION SYSTEM:
+            // Country: Indigo (authoritative, prominent)
+            // Province: Teal/Cyan (official, regional)
+            // City: Amber/Orange (urban, bustling)
+            // Town: Rose/Pink (cozy, small settlement)
+            const labelColors = node.locationType === "city" 
+              ? { bg: "#FFF7ED", border: "#EA580C", text: "#9A3412" } // Amber/Orange theme
+              : node.locationType === "town"
+              ? { bg: "#FDF2F8", border: "#DB2777", text: "#9D174D" } // Rose/Pink theme
+              : { bg: "#F9FAFB", border: "#6B7280", text: "#374151" }; // Default gray
             
-            // Scale sizes based on zoom level
-            const iconSize = (node.locationType === "country" || node.locationType === "province" ? 32 : nodeRadius * 0.75) * zoomScale;
-            const nameSize = 13 * zoomScale;
-            const residentSize = 10 * zoomScale;
-            const nameOffset = 28 * zoomScale;
-            const residentOffset = 42 * zoomScale;
-            const iconOffset = (node.locationType === "country" || node.locationType === "province" ? 12 : 10) * zoomScale;
+            // Base sizes (at default zoom)
+            const baseIconSize = node.locationType === "country" || node.locationType === "province" ? 32 : 24;
+            const baseNameSize = 11;
+            const baseResidentSize = 9;
+            const baseIconOffset = 8;
+            const baseNameOffset = 28;
+            const baseResidentOffset = 42;
+            const baseCharWidth = 7;
+            const basePadding = 6;
+            const baseBoxHeight = 16;
+            const baseStrokeWidth = 1.5;
+            const baseBorderRadius = 4;
+            
+            // Scale everything consistently
+            const iconSize = baseIconSize * zoomScale;
+            const nameSize = baseNameSize * zoomScale;
+            const residentSize = baseResidentSize * zoomScale;
+            const iconOffset = baseIconOffset * zoomScale;
+            const nameOffset = baseNameOffset * zoomScale;
+            const residentOffset = baseResidentOffset * zoomScale;
+            const charWidth = baseCharWidth * zoomScale;
+            const padding = basePadding * zoomScale;
+            const boxHeight = baseBoxHeight * zoomScale;
+            const strokeWidth = baseStrokeWidth * zoomScale;
+            const borderRadius = baseBorderRadius * zoomScale;
+            const textWidth = node.name.length * charWidth;
+            const textVerticalAdjust = 4 * zoomScale;
             
             return (
               <g key={node.id}>
@@ -861,7 +1263,7 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
                       : `${node.name} — no residents yet`}
                   </title>
                   
-                  {/* Icon - scales with zoom */}
+                  {/* Icon - constant screen size */}
                   <text
                     x={nodeX}
                     y={nodeY + iconOffset}
@@ -872,22 +1274,37 @@ export function ProceduralMap({ nodes, links }: ProceduralMapProps) {
                     {icon}
                   </text>
                   
-                  {/* Location name - scales with zoom */}
+                  {/* Location name with colored border - for cities and towns */}
                   {node.locationType !== "country" && node.locationType !== "province" && (
-                    <text
-                      x={nodeX}
-                      y={nodeY + nameOffset}
-                      textAnchor="middle"
-                      fontSize={nameSize}
-                      fontWeight={isSelected ? "700" : "600"}
-                      fill="rgba(15, 23, 42, 0.9)"
-                      style={{ pointerEvents: "none", userSelect: "none" }}
-                    >
-                      {node.name}
-                    </text>
+                    <g>
+                      {/* Background box */}
+                      <rect
+                        x={nodeX - textWidth / 2 - padding}
+                        y={nodeY + nameOffset - boxHeight / 2 - textVerticalAdjust}
+                        width={textWidth + padding * 2}
+                        height={boxHeight}
+                        fill={labelColors.bg}
+                        stroke={labelColors.border}
+                        strokeWidth={strokeWidth}
+                        rx={borderRadius}
+                        style={{ pointerEvents: "none" }}
+                      />
+                      {/* Text */}
+                      <text
+                        x={nodeX}
+                        y={nodeY + nameOffset}
+                        textAnchor="middle"
+                        fontSize={nameSize}
+                        fontWeight={isSelected ? "700" : "600"}
+                        fill={labelColors.text}
+                        style={{ pointerEvents: "none", userSelect: "none" }}
+                      >
+                        {node.name}
+                      </text>
+                    </g>
                   )}
                   
-                  {/* Resident count - scales with zoom */}
+                  {/* Resident count - constant screen size */}
                   {node.residents.length > 0 && node.locationType !== "country" && node.locationType !== "province" && (
                     <text
                       x={nodeX}
