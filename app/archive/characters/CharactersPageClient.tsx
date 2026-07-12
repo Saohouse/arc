@@ -557,17 +557,21 @@ export function CharactersPageClient({
   newCharacterButton,
   canEdit,
 }: CharactersPageClientProps) {
-  const [localCharacters, setLocalCharacters] = useState(characters);
+  // Track deleted IDs so they stay hidden even if a background refresh
+  // briefly returns stale data (e.g. Prisma Accelerate cache lag).
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    setLocalCharacters(characters);
-  }, [characters]);
+  const visibleCharacters = useMemo(
+    () => characters.filter((character) => !deletedIds.has(character.id)),
+    [characters, deletedIds]
+  );
 
-  const handleCharactersDeleted = (deletedIds: string[]) => {
-    const deletedIdSet = new Set(deletedIds);
-    setLocalCharacters((prev) =>
-      prev.filter((character) => !deletedIdSet.has(character.id))
-    );
+  const handleCharactersDeleted = (ids: string[]) => {
+    setDeletedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      return next;
+    });
   };
 
   return (
@@ -590,14 +594,14 @@ export function CharactersPageClient({
         </div>
       </div>
 
-      {localCharacters.length === 0 ? (
+      {visibleCharacters.length === 0 ? (
         <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
           No characters yet. Create the first canon entry.
         </div>
       ) : (
         <CharactersList
           storyId={storyId}
-          characters={localCharacters}
+          characters={visibleCharacters}
           tagColorMap={tagColorMap}
           canEdit={canEdit}
           onCharactersDeleted={handleCharactersDeleted}
