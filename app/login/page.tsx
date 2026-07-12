@@ -46,12 +46,19 @@ async function login(prevState: any, formData: FormData) {
   redirect("/");
 }
 
-export default async function LoginPage() {
+type PageProps = {
+  searchParams: Promise<{ reset?: string }>;
+};
+
+export default async function LoginPage({ searchParams }: PageProps) {
   // Redirect if already logged in
   const user = await getCurrentUser();
   if (user) {
     redirect("/");
   }
+
+  const { reset } = await searchParams;
+  const resetSuccess = reset === "success";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30">
@@ -63,7 +70,7 @@ export default async function LoginPage() {
           </p>
         </div>
 
-        <LoginForm action={login} />
+        <LoginForm action={login} resetSuccess={resetSuccess} />
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import { useFormStatus } from "react-dom";
 
 type LoginFormProps = {
   action: (prevState: any, formData: FormData) => Promise<{ error?: string } | void>;
+  resetSuccess?: boolean;
 };
 
 function SubmitButton() {
@@ -22,11 +23,19 @@ function SubmitButton() {
   );
 }
 
-export function LoginForm({ action }: LoginFormProps) {
+export function LoginForm({ action, resetSuccess }: LoginFormProps) {
   const [state, formAction, isPending] = useActionState(action, null);
 
   return (
     <form action={formAction} className="space-y-6">
+      {resetSuccess && (
+        <div className="rounded-md border border-green-200 bg-green-50 p-3 dark:border-green-900 dark:bg-green-950/30">
+          <p className="text-sm text-green-800 dark:text-green-400">
+            Your password has been updated. Sign in with your new password.
+          </p>
+        </div>
+      )}
+
       {state?.error && (
         <div className="rounded-md border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950/30">
           <p className="text-sm text-red-800 dark:text-red-400">
@@ -51,9 +60,17 @@ export function LoginForm({ action }: LoginFormProps) {
       </div>
 
       <div>
-        <label htmlFor="password" className="block text-sm font-medium">
-          Password
-        </label>
+        <div className="flex items-center justify-between">
+          <label htmlFor="password" className="block text-sm font-medium">
+            Password
+          </label>
+          <Link
+            href="/forgot-password"
+            className="text-xs font-medium text-muted-foreground hover:underline"
+          >
+            Forgot password?
+          </Link>
+        </div>
         <input
           id="password"
           name="password"
