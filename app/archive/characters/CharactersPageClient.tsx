@@ -69,9 +69,16 @@ type CharactersListProps = {
   characters: Character[];
   tagColorMap: Map<string, string | null>;
   canEdit: boolean;
+  onCharactersDeleted: (deletedIds: string[]) => void;
 };
 
-function CharactersList({ storyId, characters, tagColorMap, canEdit }: CharactersListProps) {
+function CharactersList({
+  storyId,
+  characters,
+  tagColorMap,
+  canEdit,
+  onCharactersDeleted,
+}: CharactersListProps) {
   const router = useRouter();
   const [isCompact, setIsCompact] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
@@ -170,6 +177,7 @@ function CharactersList({ storyId, characters, tagColorMap, canEdit }: Character
     setIsDeleting(true);
     try {
       await deleteCharacters(storyId, ids);
+      onCharactersDeleted(ids);
       exitEditMode();
       router.refresh();
     } catch {
@@ -549,6 +557,19 @@ export function CharactersPageClient({
   newCharacterButton,
   canEdit,
 }: CharactersPageClientProps) {
+  const [localCharacters, setLocalCharacters] = useState(characters);
+
+  useEffect(() => {
+    setLocalCharacters(characters);
+  }, [characters]);
+
+  const handleCharactersDeleted = (deletedIds: string[]) => {
+    const deletedIdSet = new Set(deletedIds);
+    setLocalCharacters((prev) =>
+      prev.filter((character) => !deletedIdSet.has(character.id))
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Header Section - Mobile Optimized */}
@@ -569,16 +590,17 @@ export function CharactersPageClient({
         </div>
       </div>
 
-      {characters.length === 0 ? (
+      {localCharacters.length === 0 ? (
         <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
           No characters yet. Create the first canon entry.
         </div>
       ) : (
         <CharactersList
           storyId={storyId}
-          characters={characters}
+          characters={localCharacters}
           tagColorMap={tagColorMap}
           canEdit={canEdit}
+          onCharactersDeleted={handleCharactersDeleted}
         />
       )}
     </div>
